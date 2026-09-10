@@ -148,3 +148,5 @@ The user requested CGTrader's “Realistic male hand” by daniartist, model #24
 https://www.cgtrader.com/free-3d-models/character/human-anatomy/hand-e378a8c0-8a06-45db-ad83-4ef169295091
 
 **That model has not been downloaded or used.** CGTrader displayed a sign-in requirement at Free Download. The page lists OBJ and ZTL. Obtain the actual source through the user's authorized account/file before replacing the mesh; do not claim the current hand is that model.
+
+The supplied sculpture is now the tracked head: mirror/avatar/head.glb. Its neck was cut below the jaw and capped. See mirror/avatar/README.md, assets/head-rig/head-only.blend, and tools/head-rig/build.py (run through Blender in background mode). The first-person camera hides its own head, while a collapsible preview shows it following the tracked pose.

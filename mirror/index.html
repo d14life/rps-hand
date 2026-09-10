@@ -35,6 +35,9 @@
   body.immersive #app {grid-template-columns:1fr;grid-template-rows:1fr}
   body.immersive #app > .pane:first-child {display:none}
   #layout {position:static;background:#273449;color:#fff;font-size:14px;padding:8px;border-radius:9px}
+  #head-preview {position:absolute;left:12px;bottom:62px;background:#192633;border:1px solid #526070;border-radius:10px;overflow:hidden}
+  #head-preview summary {padding:8px;font-size:12px;cursor:pointer;color:#e6eef3}
+  #head-canvas {display:block;width:140px;height:170px}
   </style>
 </head>
 <body class="immersive">
@@ -60,6 +63,7 @@
     </div>
     <label id="zoom-label">Zoom <input id="zoom" aria-label="Mirror zoom" type="range" min="1" max="2" step="0.05" value="1"></label>
     <button id="mode">MODE: predict</button>
+    <details id="head-preview" open><summary id="head-label">Loading your head…</summary><canvas id="head-canvas" aria-label="Tracked sculpture head preview"></canvas></details>
 
   </div>
 </div>
@@ -70,6 +74,7 @@
 import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
 import { HeadView } from "./head/HeadView.js?v=person3";
+import { TrackedHead } from "./avatar/TrackedHead.js?v=1";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
@@ -249,6 +254,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1f2b); scene.fog = new THREE.Fog(0x1a1f2b, 1.2, 3.5);
 const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 8);
 const worldGroup = new THREE.Group(); scene.add(worldGroup);   // everything that must mirror in the selfie view
+let avatar=null;
+try { avatar=new TrackedHead(scene,$("head-canvas"),$("head-label")); }
+catch { $("head-label").textContent='Head preview unavailable'; }
 let frameW = 640, frameH = 480;   // camera frame size, set once the video is known
 let zoom = 1.0;
 $("zoom").oninput = () => { zoom = +$("zoom").value; applyView(true); };
@@ -420,6 +428,7 @@ async function main() {
     worldGroup.position.set(-origin[0],-origin[1],-origin[2]-(first?.30:0));
     $("mirror-label").textContent=first?'FIRST PERSON · YOUR HANDS':viewMode==='window'?'3D HAND WINDOW':'HAND MIRROR';
     renderer.render(scene, camera);
+    avatar?.update(camera,headView,now);
     requestAnimationFrame(loop);
   };
   loop();
