@@ -749,3 +749,34 @@ interfere.
 3. Finger bending uses flat bones with linear blend skinning: sharp bends pinch at PIP. Dual quaternion skinning or
    a bone hierarchy with proper roll is the next step if it shows on the phone.
 4. Everything in §20's open list (curl-angle move detection, stable-gesture hold) is still open.
+
+## 23. Build 16: owner's rigged models, head + upper-body + avatar + mirror + calibration integrated (2026-09-10, late)
+
+- **Hand meshes now come from the owner's own rigged models** (`?skin=<base>` loads `<base>_L.glb` + `<base>_R.glb` + JSONs).
+  `docs/arm_L/R.glb` (default): the "arms" game-ready model, 2.9 k verts per side, 22 hierarchical bones (arm, forearm,
+  hand, metacarpal + 3 phalanges per finger, 3 thumb bones), 2048 WEBP albedo / metal-roughness / normal (DirectX map,
+  green flipped on export). `docs/thing_L/R.glb`: the "Thing" hand (single right hand, mirrored for the left), 9 k tris,
+  IK removed. JSON contract: `joints` (21 bind joints in glTF coords from the rest-pose bone heads/tails), `bones`
+  {"p-j": rigBoneName, hand, forearm, arm}, `extra` rest head/tail of those, `hand`. The page (`loadRig`, `makeRigSkin`)
+  flattens the hierarchy, drives every mapped bone with the same per-bone frame as the scan (`boneFrame`, exact tracked
+  lengths, per-chain thickness), the hand bone from wrist toward the middle knuckle, the forearm straight behind the wrist,
+  and every undriven bone rides rigidly with the palm (leaving them at rest stretched the skin across the room). Scan rigs
+  stay available: `?skin=hand.glb` (v2), `hand_u.glb` (owner joints, straight rest), `hand_r.glb` (Quadriflow retopo
+  28.9 k quads, 2 UV islands, baked normal/AO/skin/nails - clean fists, see the agent report in this session).
+- **Head, upper body, avatar, mirror, calibration** (from `origin/codex/hand-rig-workflow`, design in the session's
+  INTEGRATION.md, implemented by an agent, applied with `apply_integration.py`): `docs/head/*` (FaceLandmarker worker,
+  6-DoF head fit with the same pinhole/HFOV as the hands, neutral capture, filters), `docs/body/*` (PoseLandmarker worker,
+  token scheduler: face after the hand result, body after two face results), `docs/avatar/RiggedAvatar.js` +
+  `upper-body.glb` (mannequin, wrists handed to hand landmark 0), Reflector mirror in first person, SETUP dialog
+  (seated/standing calibration; head depth scaled to the hands during "center") and MOVE settings panel (gains, modes,
+  recenter). Views: mirror / first person (camera at the tracked head + gains + nav) / third person. Floor at -1.2 m with a
+  table at the old -0.28 m (props unchanged). Budget ratchet: 3 s under 20 hand-fps sheds body -> mirror -> face rate.
+  Query flags: `?head=0 ?body=0 ?avatar=0 ?mirror=0 ?setup=1 ?view=first_person|third_person ?fpfov= ?hdel=CPU ?bdel=CPU ?ground=`.
+  Harness: `web_hard_test.py` gained face stills (woman_hands head reproj 0.33 %, seated_desk 0.24 %, both < 1 %),
+  `docs/test/*.test.mjs` (6 node tests, all pass), `test/seated_desk.jpg` (Commons File:JHF1.jpg, CC BY-SA 3.0).
+  Numbers here: stills 5/9, tilt 0.07 %, wave/counting reproj and lag unchanged with head+body on; hand tracker 33-38 fps
+  with face 17 fps and body 8-9 fps on this PC. Phone not measured.
+- Build 15 (latency): frames pumped on `requestVideoFrameCallback`, tracker input 480 px, hand shadow off, hi LOD only
+  above 25 tracker fps; capture-to-result 49 -> 38 ms under 6x CPU throttle.
+- Next: the 3D map world (owner's last stage), phone measurements of everything above, texture bake `hand_v3` (agent still
+  running when this was written, targets the scan mesh).
