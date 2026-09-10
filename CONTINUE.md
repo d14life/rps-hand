@@ -15,7 +15,7 @@ open tuning problems. Then:
    Numbers only compare between runs on the SAME PC (tracker fps differs per GPU), and the rps clip starts
    at a random point per run.
 2. Work on mechanics (tracking precision, stability with two hands, height/depth, latency) and on the
-   creature hand mesh (HANDOFF §22: normal-map bake, claw pinning, phone frame rate, pinch-navigation gains).
+   hand-scan mesh (HANDOFF §22: phone frame rate, skinning quality at bent joints, pointing-navigation gains).
 3. Every change: rerun the harness, compare the numbers to the table in HANDOFF §20, look at the
    hard_*.png frames, then push docs/ to main (GitHub Pages redeploys https://tagirz500.github.io/rps-hand/
    in ~30 s; bump BUILD in docs/index.html so the phone readout shows the new build).

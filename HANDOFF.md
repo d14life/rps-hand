@@ -551,12 +551,14 @@ rps_hand/  (= github.com/tagirz500/rps-hand)
   web_test.py, web_hard_test.py, fetch_test_media.py
 ```
 
-## 22. Build 14: creature hand mesh, picture-space gating, honest lag metric, pinch navigation (2026-09-10, session on D1's PC)
+## 22. Build 14: hand-scan mesh, picture-space gating, honest lag metric, pointing navigation (2026-09-10, session on D1's PC)
 
 This session ran on a different PC (`C:\Users\D1\Downloads\rps_hand`, gh account `d14life`, which has **no push
 rights** to tagirz500/rps-hand: changes go up as a fork + pull request, the owner merges and Pages redeploys).
-Mid-session the owner sent `creature_hand.zip` ("rig this hand and use it instead of what we have now"), so the
-"mechanics only" rule was lifted for the mesh.
+Mid-session the owner sent `creature_hand.zip` ("rig this hand and use it instead of what we have now"), then
+"why does the hand look so bad", then `hand1.OBJ` ("use this hand instead, scrap the other one; make sure the fingers
+are not crooked this time"). The creature hand was rigged first (same pipeline idea, it is in git history at commit
+f6e3098) and then replaced by the scan. The "mechanics only" rule was lifted for the mesh.
 
 **Test PC difference.** The tracker runs at 40-70 fps here (30 on Tagir's PC), so `frames`, `dispJumps` and the
 per-frame thresholds are not directly comparable with the §20 table; compare runs on the same PC. The `rps`
@@ -609,61 +611,83 @@ MediaPipe returns one hand ~96 % of the time; their `reproj`/`lag` mostly measur
 against stale detections, and `dispJumps` there counts hand switches the gate now lets through when they continue
 the motion. `held` (411-534 frames on cleanhands) is the number to bring down next, not the gate.
 
-### 22.3 The creature hand (owner's ZBrush sculpt) - how it was rigged
-Source `creature_hand.zip` (733 MB): `.ZTL`, one FBX (no rig, no UVs, no colours), three OBJ poses of the same
-2 M-quad mesh (pose 1 grasping, pose 2 open, pose 3 clawing), STLs. Pipeline (Blender 4.5.3 headless, scripts
-`prep.py`, `joints2.py`, `rig.py` - kept in the session scratchpad, easy to recreate from this description):
-1. Import pose 2 (open hand) with polygroups split: one 1.67 M-face body + four distal-finger groups + the wrist cuff.
-   Decimate to ~61 k triangles (body 26 k faces target, small groups 700-1200), tag the distal groups, join, shade smooth.
-2. Frame: OBJ x = across the hand, y = along it (fingers toward -y, wrist cut at y = 3.66), z = thickness. Knuckles
-   bulge toward +z, fingertips curl toward -z, so the **palm faces -z**; with the thumb at +x the sculpt is a **right hand**.
-3. The 21 MediaPipe joints were placed by measurement, not by eye: per finger an x band, the fleshy tip = min y of the
-   band + 0.55, MCP row from the knuckle bumps (y -1.4 .. -1.7), PIP/DIP at 45 % / 76 % of MCP->tip, each joint's x and
-   z = centre of the mesh cross-section at that y (z = midpoint of the z extent, not the vertex mean, which the dense
-   wrinkled palm side biased). Thumb and wrist from local slabs. Verified by rendering red spheres + bones over the
-   x-ray mesh from palm, back and side (three iterations). Joints are in `docs/creature_hand.json` (mesh units,
-   ~1 unit = 2.5 cm).
-4. Armature: 20 bones, **no hierarchy**, bone `b<j>` runs from joint PARENT[j] to joint j. Automatic (bone heat)
-   weights, 0 unweighted vertices. Exported `docs/creature_hand.glb` (1.7 MB, 30.8 k vertices, 61 k triangles,
-   nodes at identity, coordinates = OBJ coordinates).
+### 22.3 The hand mesh (`hand1.OBJ`, the owner's hand scan) - how it was rigged
+Source: `C:\Users\D1\Downloads\hand1.OBJ` (40 MB, 597 k vertices, 590 k quads + 13 k tris, one group, no UVs/normals),
+a realistic LEFT hand with a short wrist stump, fingers spread and slightly curled, rotated ~30 deg in its bounding box
+(bbox x 45-85, y 173-228, z 49-79; 1 unit = about 3.5 mm). Pipeline (Blender 4.5.3 headless; scripts `inspect2.py`,
+`grid2.py`, `joints4.py`, `rig2.py` in the session scratchpad, all short and reproducible from this description):
+1. Import, apply the importer's rotation, shade smooth, decimate to 75.9 k faces (`hand1_dec.blend`).
+2. Principal axes of the vertex cloud: e0 along the hand (oriented toward the fingers = the end with the wider
+   across-extent), e2 = thickness, e1 = e2 x e0. Everything below is in (u along, v across, w thick) coordinates.
+3. Two orthographic renders along +/-e2 with a 5-unit grid. The +w side shows nails and knuckles (back), the -w side
+   creases (palm): **palm faces -w, and with the thumb at v < 0 in the back view the scan is a LEFT hand** (confirmed by
+   the finger-curl test in the script: fingertips lie on the -w side of the knuckle plane; `hand.json` says `"hand": "left"`).
+4. Joints picked from the gridded back view (`picks_hand1.json`: wrist, thumb 1-4, and MCP + tip per finger; PIP/DIP at
+   45 % / 76 % of MCP->tip), each joint's w = midpoint of the widest surface pair along a ray through (u, v). Automatic
+   fingertip finding (farthest clusters from the wrist + tube tracing) was tried first and failed: the curled thumb is
+   not among the farthest points and the tube trace never met its stop condition - don't repeat that.
+5. Verified with red spheres + bones over the x-ray mesh from back, palm and edge-on (`j4_sheet.png`): all 21 inside
+   the flesh on the finger axes, the edge view follows the curl.
+6. Armature: 20 bones, no hierarchy, `b<j>` from joint PARENT[j] to joint j; automatic weights, 0 unweighted vertices.
+7. Normal map: smart-UV-project the low-res, Cycles bake NORMAL (tangent) selected-to-active from the 603 k-face
+   original (cage 1.2, ray 5.0, `use_clear=False` on a map pre-filled with the flat normal), 1024^2 PNG inside the GLB.
+   Blender's own EEVEE check render still shows dark fingertip caps; the same GLB in three.js does not (`shot_h1_*.png`),
+   so it was left as is - re-check on the phone.
+8. `docs/hand.glb` 4.6 MB (56 k vertices, 79 k triangles, material = colour 0.80/0.60/0.50, roughness 0.6, normal map),
+   `docs/hand.json` (21 bind joints in glTF = OBJ coordinates, `hand`, bone names).
 
-### 22.4 How the page drives it (`boneFrame`, `makeSkin`)
-`hand.draw(pts)` is unchanged for callers. Per bone and per frame a 4x4 is built from the tracked points: origin at
-the parent joint, y axis along the bone scaled to the **tracked** length, x from a twist reference (across-palm
-direction 5->17 for finger bones, palm normal for thumb bones, blended continuously when a bone approaches its
-reference), z = x cross y, x/z scaled by the tracked-to-bind ratio of the palm length 0->9. The bind inverse of
-each bone is the same function evaluated on the bind joints, so the bind pose maps to identity and Blender's bone
-rolls are irrelevant. Bones are flat children of the SkinnedMesh with `matrixAutoUpdate = false`; the mesh is bound
-with an identity bind matrix, so the skin lands exactly on the tracked points in the hand group's space (the mirror
-view's `scale.x = -1` still applies to the group). **No canonical lengths anywhere** - the skin stretches to the
-tracked geometry, the green skeleton lines still sit exactly on the video lines.
-- **Handedness** comes from the geometry, not from MediaPipe's flickering label: sign of (tip 4 - wrist) .
-  ((5-0) x (17-0)) is + for a right hand (the thumb sits on the palm side); smoothed per slot. The left hand is the
-  GLB mirrored in x with reversed winding and its own bind inverses. Verified on `victory.jpg` with the `?cam=` debug
-  camera: the palm (creases) faces the phone, the claws sit on the back.
-- The capsule hand remains as the fallback when the GLB cannot load (`?skin=0` forces it). HUD shows `mesh`/`capsules`.
-- Skin shaders are compiled at start (`renderer.compile` with both hands drawn once); before that the first
-  appearance of a hand stalled the page ~3 s on this PC's GPU.
-- Two hands = 122 k skinned triangles + shadow pass: 43-48 fps here with the tracker running; not yet measured on a phone.
+### 22.4 How the page drives it (`boneFrame`, `meshPts`, `makeSkin`)
+`hand.draw(pts)` is unchanged for callers. Per bone and per frame a 4x4 is built from the points: origin at the parent
+joint, y axis along the bone scaled to the **tracked** length, x from a twist reference (across-palm direction 5->17 for
+finger bones, palm normal for thumb bones, blended continuously when a bone approaches its reference), z = x cross y,
+x/z scaled by the tracked-to-bind ratio of the palm length 0->9. The bind inverse of each bone is the same function on
+the bind joints, so the bind pose maps to identity and Blender's bone rolls are irrelevant. Bones are flat children of
+the SkinnedMesh with `matrixAutoUpdate = false`; the mesh is bound with an identity bind matrix, so the skin lands on
+the points in the hand group's space (the mirror view's `scale.x = -1` still applies). The GLB's material is cloned for
+each mesh (colour, roughness, normal map).
+- **Crooked / fat fingers, deformed nails** (the owner's complaints, twice): stretching the skin to the raw tracked
+  joint positions copies every proportion error and per-joint jitter of the tracker into the mesh (a finger the tracker
+  makes 15 % short gets squashed and looks fat; a PIP 4 mm sideways zigzags the finger; a short tip bone crushes the
+  nail). So the skin is now driven like a rigged character - **`poseFK` (default, HUD says `mesh rigged`)**: the scan
+  keeps its OWN bone lengths, scaled once by the tracked palm length; the tracker supplies only directions. Per finger
+  the chain MCP->PIP->DIP->tip is rebuilt in the finger's bending plane (sideways components removed) with a
+  hyperextension clamp (`HYPER` 25/8/8 degrees backward at MCP/PIP/DIP); palm bones and thumb take the tracked
+  directions as they are; the result is translated so its palm centre sits on the tracked palm centre. The skin
+  therefore deviates from the green lines by the tracker's proportion error (fingertips a few mm); the lines, the
+  colliders, the metrics and the move detection still use the exact tracked points. `?fit=exact` restores the previous
+  exact-geometry drive (`meshPts`: tracked positions with only the sideways PIP/DIP noise projected out), HUD `mesh exact`.
+  This is the one place the "never canonical" rule is bent, on the owner's later instruction that the fingers must not
+  look crooked.
+- **Handedness** from the geometry, not from MediaPipe's flickering label: sign of (tip 4 - wrist) . ((5-0) x (17-0))
+  is + for a right hand; smoothed per slot. The other hand is the GLB mirrored in x with reversed winding and its own
+  bind inverses (`mirroredIsLeft` = the GLB is a right hand; for this scan it is false, so a tracked RIGHT hand gets the
+  mirrored copy). Verified on `victory.jpg` with `?cam=`: palm creases face the phone, nails/veins on the back.
+- The capsule hand remains as the fallback when the GLB cannot load (`?skin=0`). HUD shows `mesh`/`capsules`.
+- Skin shaders are compiled at start behind the loading text (`renderer.compile`); ~3 s on this PC's GPU.
+- Two hands = 158 k skinned triangles + shadow pass: 45-53 fps here with the tracker running; not yet measured on a phone.
 
-### 22.5 Pinch navigation (owner's message during the session)
-"When I pinch and move my hand from close to far I move forwards; from myself toward the camera I move back; pinch and
-move across the screen and my viewing angle changes." Implemented in the **first-person view only** (the mirror view
-must stay glued to the video): pinch = thumb tip within 0.3 palm lengths of the index tip while the index counts as
-extended (a fist does not pinch), release above 0.5. While pinching, the palm's displacement since the pinch started
-drives `nav`: pull toward yourself (z more negative) = forward along the view direction (`NAV_MOVE` 4 m per m),
-sideways drag = turn (`NAV_TURN` 4 rad per m, drag-the-world sign: drag to your right = look left). The hands travel
-with the player (the tracked points are rotated/offset before `hand.draw`, so colliders follow too). RESET OBJECTS also
-resets nav; HUD shows `nav <m> <deg> (pinch+drag)` in first-person view; `?nav=x,z,yaw` presets it for render checks.
-Not yet felt on a real phone: gains and the turn sign are the first things to tune.
+### 22.5 Pointing navigation (owner's messages during the session)
+"When I [gesture] and move my hand from close to far I move forwards; from myself toward the camera I move back; move
+across the screen and my viewing angle changes." First asked as a pinch, then changed to **index finger out** ("a pinch
+would be too hard to see"). Implemented in the **first-person view only** (the mirror view must stay glued to the video):
+pointing = index extended and middle/ring/pinky folded (the existing `fingersUp` rule). While pointing, the palm's
+displacement since the gesture started drives `nav`: pull toward yourself (z more negative) = forward along the view
+direction (`NAV_MOVE` 4 m per m), sideways drag = turn (`NAV_TURN` 4 rad per m, drag-the-world sign: drag to your right
+= look left). The hands travel with the player (the tracked points are rotated/offset before `hand.draw`, so colliders
+follow too). RESET OBJECTS also resets nav; HUD shows `nav <m> <deg> (point+drag)` in first-person view and `pointing`
+next to the hand; `?nav=x,z,yaw` presets it for render checks. Not yet felt on a real phone: gains and the turn sign
+are the first things to tune. The pointing pose is also the RPS "no move" pose, so navigation and a round do not
+interfere.
 
 ### 22.6 Repo additions
-`docs/creature_hand.glb`, `docs/creature_hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
+`docs/hand.glb`, `docs/hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
 `baseline_b13*.txt` / `run_b14*.txt` (harness logs of this session). Query parameters added: `?skin=0`, `?cam=x,y,z,tx,ty,tz`, `?nav=x,z,yaw`.
 
 ### 22.7 Open items after build 14
-1. Try it on the phone: mesh frame rate, pinch gains/sign, whether the wrist cuff (the sculpt's cut forearm) should be hidden.
-2. Bake a normal map from the 2 M-quad sculpt onto the 61 k mesh (needs UVs: smart-project + Cycles bake) to get the
-   wrinkles back; the decimated mesh is smooth.
-3. Claws are skinned like skin; pin the distal polygroup vertices 100 % to the tip bones if they bend.
+1. Try it on the phone: mesh frame rate (4.6 MB GLB, 79 k triangles per hand), navigation gains/sign, whether the
+   wrist stump should be hidden or extended into a forearm.
+2. Skin quality: the GLB material is flat colour + normal map (the scan has no colour). Subsurface or a painted tint
+   would help; WebP instead of PNG would halve the GLB.
+3. Finger bending uses flat bones with linear blend skinning: sharp bends pinch at PIP. Dual quaternion skinning or
+   a bone hierarchy with proper roll is the next step if it shows on the phone.
 4. Everything in §20's open list (curl-angle move detection, stable-gesture hold) is still open.
