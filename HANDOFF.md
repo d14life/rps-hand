@@ -780,3 +780,15 @@ interfere.
   above 25 tracker fps; capture-to-result 49 -> 38 ms under 6x CPU throttle.
 - Next: the 3D map world (owner's last stage), phone measurements of everything above, texture bake `hand_v3` (agent still
   running when this was written, targets the scan mesh).
+
+## 24. Build 17: the 3D map world (2026-09-10, end of session)
+
+`docs/world/World.js` (procedural, no downloads; applied by the session's `patch_world.py`): ~120 x 120 m map around the
+home table - heightfield terrain with a Rapier heightfield collider, loop road with intersections, a town block of
+low-poly buildings (canvas window textures, cuboid colliders the navigation cannot enter), a park with instanced trees
+and lamp posts, a river, landmarks; sun shadow camera follows the player; fog; MAP button with a mini-map (top-down
+canvas, player arrow); the player follows the terrain height; `?world=0` disables it (harness clips keep their
+numbers: stills 5/9, tilt 0.07 %, face stills unchanged, ERRORS none). Cost on this PC: hand tracker 25-34 fps with the
+world on (was 33-42). Verified views: mirror (hands + avatar in front of the park), first person (home pavilion on the
+road), third person, top-down orthogonal (roads/buildings/river/trees, no overlap). Phone frame rate not measured; the
+budget ratchet from §23 (body -> mirror -> face rate) is the first lever, `?world=0` the second.
