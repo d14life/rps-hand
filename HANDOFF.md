@@ -727,6 +727,15 @@ interfere.
 - Finger thickness is per chain again (a short finger is also a thin finger) but settled with a 0.01/frame EMA so it
   cannot change with distance; the single-constant version made the extended fingers of a V look fat.
 
+- **Owner's decision (end of session):** the rebuild on the owner's joints (`hand_u.glb`, `hand_u_hi.glb`, `hand_u.json`,
+  straight rest, LOD) was first promoted with the rebuild agent's EARLY weights (torn palm under the ring finger) and the
+  owner rejected it ("much worse"); the fixed version is kept as `?skin=hand_u.glb`. The live default is the previous
+  export (`hand_v2` = `hand.glb`/`hand.json`, joints from §22.3, curled rest, agent weights). Textures go onto that one.
+- Overlay: the cyan reprojection is now `?debug=1` only (owner: "why two colours"). Render cost cut (pixel ratio 1.5,
+  512 shadow map, shadows off under 20 tracker fps) after the phone showed 67 ms / 14 fps with the mesh.
+- Next, in the owner's order: hand perfect on hard gestures -> integrate origin/codex/hand-rig-workflow (head + upper
+  body tracking, avatar, 3D mirror, calibration UI; design in scratchpad INTEGRATION.md) -> a 3D map world.
+
 ### 22.6 Repo additions
 `docs/hand.glb`, `docs/hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
 `web_compare.py` (real-vs-mesh sheet over 22 hand positions), `angles_probe.py` (3D vs picture finger bends),
