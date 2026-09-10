@@ -792,3 +792,14 @@ numbers: stills 5/9, tilt 0.07 %, face stills unchanged, ERRORS none). Cost on t
 world on (was 33-42). Verified views: mirror (hands + avatar in front of the park), first person (home pavilion on the
 road), third person, top-down orthogonal (roads/buildings/river/trees, no overlap). Phone frame rate not measured; the
 budget ratchet from §23 (body -> mirror -> face rate) is the first lever, `?world=0` the second.
+
+## 25. Build 20: reset to hands only (owner: "everything is fucked, make a copy, remove everything, leave just hands, first person and a mirror view")
+
+`docs/index.html` is rebuilt from the build-15 hands page (commit c719192) with physics/props, the RPS game, pointing
+navigation, head/body/avatar/mirror/world all removed. What is left: tracker pipeline, the owner's rigged arms hand
+(`?skin=arm`, forearm/upper arm collapsed into the wrist by default = "just palms"; `?arms=1` shows them), views
+first person (default on a live camera) and mirror (default for `?img`/`?video`), MODE button, HUD. Everything removed is
+intact at `docs/full.html` (build 17 + first-person default) and its modules (`docs/head`, `body`, `avatar`, `world`) and
+in git history. Harness: stills 5/9, tilt 0.07 %, ERRORS none; the two face stills FAIL by design (no head tracker).
+Owner feedback that led here: on the phone the avatar was stuck inside the map, and the index-finger navigation did not
+move him forward/back or turn reliably. Next: rebuild navigation on this base with the owner testing each step.
