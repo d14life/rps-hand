@@ -1,21 +1,21 @@
-import { ViewPose } from './pose.mjs';
+import { ViewPose, WindowPose, windowFrustum } from './pose.mjs?v=window2';
 
 export class HeadView {
-  constructor(video, camera, { mode, recenter, status }) {
+  constructor(video, camera, { mode, recenter, status, hfov = Math.PI/3 }) {
     this.video = video; this.camera = camera; this.status = status;
-    this.pose = new ViewPose(); this.busy = false; this.ready = false; this.failed = false;
+    this.pose = new ViewPose(); this.window = new WindowPose(); this.mode = mode.value; this.hfov = hfov; this.busy = false; this.ready = false; this.failed = false;
     this.lastCapture = -Infinity; this.lastVideo = -1;
-    this.worker = new Worker(new URL('./worker.mjs', import.meta.url), { type: 'module' });
+    this.worker = new Worker(new URL('./worker.mjs?v=window2', import.meta.url), { type: 'module' });
     const fail = () => { this.failed = true; this.busy = false; this.worker.terminate(); clearTimeout(this.timer); };
     this.worker.onerror = fail;
     this.worker.onmessage = ({ data }) => {
       if (data.type === 'error') return fail();
       if (data.type === 'ready') { this.ready = true; clearTimeout(this.timer); }
-      if (data.type === 'pose') { this.busy = false; this.pose.receive(data.pose, performance.now()); }
+      if (data.type === 'pose') { this.busy = false; const now=performance.now(); this.pose.receive(data.pose, now); this.window.receive(data.pose, now, video.videoWidth/video.videoHeight, this.hfov); }
     };
     this.timer = setTimeout(fail, 60000);
-    mode.onchange = () => { this.pose.mode = mode.value; this.pose.recenter(); };
-    recenter.onclick = () => this.pose.recenter();
+    mode.onchange = () => { this.mode = mode.value; this.pose.mode = mode.value; this.pose.recenter(); this.window.recenter(); };
+    recenter.onclick = () => { this.pose.recenter(); this.window.recenter(); };
     addEventListener('pagehide', () => { this.worker.terminate(); clearTimeout(this.timer); }, { once: true });
   }
   async capture(now) {
@@ -30,7 +30,15 @@ export class HeadView {
   update(now, dt) {
     this.capture(now);
     const { yaw, pitch } = this.pose.update(now, dt);
-    this.camera.rotation.set(pitch, yaw, 0, 'YXZ');
-    this.status.textContent = this.pose.mode === 'off' ? 'Fixed mirror view' : this.failed ? 'Head tracking unavailable — hand tracking still works' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face and hand in view · look straight to center' : this.pose.mode === 'eyes' ? 'Head + eyes · approximate gaze' : 'Head tracking on · turn gently to look around';
+    const eye = this.window.update(now, dt, this.mode === 'window');
+    this.camera.position.set(...eye);
+    this.camera.rotation.set(this.mode === 'window' ? 0 : pitch, this.mode === 'window' ? 0 : yaw, 0, 'YXZ');
+    this.camera.updateProjectionMatrix();
+    if (this.mode === 'window') {
+      const f=windowFrustum(eye,this.camera.fov,this.camera.aspect,this.camera.zoom,this.camera.near);
+      this.camera.projectionMatrix.makePerspective(f.left,f.right,f.top,f.bottom,this.camera.near,this.camera.far);
+      this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
+    }
+    this.status.textContent = this.mode === 'off' ? 'Fixed mirror view' : this.failed ? 'Head tracking unavailable — hand tracking still works' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face in view · look straight and Recenter' : this.mode === 'window' ? '3D window · lean sideways, up/down, closer or farther' : this.mode === 'eyes' ? 'Head + eyes · approximate gaze' : 'Head tracking on · turn gently to look around';
   }
 }

@@ -13,6 +13,9 @@ export function facePose(points, categories = [], aspect = 1) {
   const s = name => scores[name] || 0;
   const blink = Math.max(s('eyeBlinkLeft'), s('eyeBlinkRight')) > .45;
   const pose = {
+    centerX: (points[33].x + points[263].x) / 2,
+    centerY: (points[33].y + points[263].y) / 2,
+    span: Math.hypot(...sub(points[263], points[33])),
     yaw: Math.atan2(n[0], n[2]),
     pitch: Math.atan2(n[1], Math.hypot(n[0], n[2])),
     eyeX: (s('eyeLookInLeft') + s('eyeLookOutRight') - s('eyeLookOutLeft') - s('eyeLookInRight')) / 2,
@@ -20,6 +23,39 @@ export function facePose(points, categories = [], aspect = 1) {
     blink
   };
   return Object.values(pose).every(v => typeof v === 'boolean' || Number.isFinite(v)) ? pose : null;
+}
+
+// Eye position relative to a neutral viewer, metres in mirrored scene coordinates.
+// 3D outer-eye span reduces false depth changes from turning the head.
+export class WindowPose {
+  constructor() { this.neutral = null; this.seen = -Infinity; this.target = [0,0,0]; this.eye = [0,0,0]; }
+  recenter() { this.neutral = null; this.target = [0,0,0]; }
+  receive(p, now, aspect, hfov) {
+    if (!p || !Number.isFinite(p.span) || p.span < .025) return;
+    if (now - this.seen > 1500) this.neutral = null;
+    this.neutral ??= {...p}; this.seen = now;
+    const distance = .45, depth = distance * this.neutral.span / p.span;
+    const k = 2 * Math.tan(hfov / 2), n = this.neutral;
+    this.target = [
+      clamp(-k*((p.centerX-.5)*depth-(n.centerX-.5)*distance), .20),
+      clamp(-k*((p.centerY-.5)*depth-(n.centerY-.5)*distance)/aspect, .16),
+      Math.max(-.18, Math.min(.30, depth-distance))
+    ];
+  }
+  update(now, dt, enabled = true) {
+    const target = enabled && now-this.seen < 650 ? this.target : [0,0,0];
+    const a = 1-Math.exp(-Math.min(dt,.1)/.085);
+    this.eye = this.eye.map((v,i) => enabled ? v+(target[i]-v)*a : 0);
+    return this.eye;
+  }
+}
+
+// Fixed virtual screen at z=-distance. Its edges remain fixed as the eye moves.
+export function windowFrustum(eye, fov, aspect, zoom, near, distance=.35) {
+  const halfY = distance * Math.tan(fov*Math.PI/360) / zoom;
+  const halfX = halfY * aspect, scale = near/(distance+eye[2]);
+  return { left:(-halfX-eye[0])*scale, right:(halfX-eye[0])*scale,
+    top:(halfY-eye[1])*scale, bottom:(-halfY-eye[1])*scale };
 }
 
 export class ViewPose {

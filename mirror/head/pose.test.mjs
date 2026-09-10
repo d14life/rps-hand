@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { facePose, ViewPose } from './pose.mjs';
+import { facePose, ViewPose, WindowPose, windowFrustum } from './pose.mjs';
 const mesh = (yaw=0, pitch=0, aspect=4/3) => {
   const p = Array.from({length:478}, () => ({x:.5,y:.5,z:0}));
   for (const [i,x,y] of [[234,-.15,0],[454,.15,0],[10,0,-.2],[152,0,.2]]) {
@@ -32,3 +32,22 @@ v.receive({...neutral,eyeX:1,eyeY:1,blink:true},2500);
 for(let i=0;i<40;i++) v.update(2500,.1);
 assert.ok(Math.abs(v.yaw)<1e-8);
 console.log('PASS: orientation, aspect, recenter, limits, dropout, fixed mode, eyes and blinks');
+const w=new WindowPose(), base={centerX:.5,centerY:.5,span:.2};
+w.receive(base,0,4/3,Math.PI/3);
+w.receive({...base,centerX:.6,centerY:.6,span:.25},100,4/3,Math.PI/3);
+const eye=w.update(100,.1); assert.ok(eye[0]<0 && eye[1]<0 && eye[2]<0);
+w.recenter(); w.receive(base,200,4/3,Math.PI/3);
+assert.deepEqual(w.target,[0,0,0].map((_,i)=>i<2?-0:0));
+for(const e of [[0,0,0],[.15,-.1,.2],[-.15,.1,-.18]]) {
+  const f=windowFrustum(e,50,1.5,1,.05), halfY=.35*Math.tan(25*Math.PI/180), halfX=halfY*1.5;
+  // Project a point on the fixed screen through the shifted near-plane frustum.
+  const ndc=(x,y,z)=>{
+    const q=.05/(-z+e[2]);
+    return [2*((x-e[0])*q-f.left)/(f.right-f.left)-1,2*((y-e[1])*q-f.bottom)/(f.top-f.bottom)-1];
+  };
+  const corner=ndc(halfX,halfY,-.35);
+  assert.ok(Math.abs(corner[0]-1)<1e-8 && Math.abs(corner[1]-1)<1e-8);
+  if(e[0]!==0) assert.ok(Math.abs(ndc(0,0,-1)[0]-ndc(0,0,-.35)[0])>.01);
+}
+assert.deepEqual(w.update(2000,.1,false),[0,0,0]);
+console.log('PASS: 3-axis eye movement, recenter, fixed screen corners, depth parallax, off reset');

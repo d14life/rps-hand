@@ -32,9 +32,12 @@
   #head-controls {position:absolute;top:54px;left:12px;right:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   #head-mode, #recenter {position:static;background:#273449;color:#eef1f5;border:1px solid #526070;border-radius:9px;padding:8px;font:14px system-ui}
   #head-status {flex-basis:100%;font-size:12px;color:#d3e4dd;text-shadow:0 1px 3px #000;pointer-events:none}
+  body.immersive #app {grid-template-columns:1fr;grid-template-rows:1fr}
+  body.immersive #app > .pane:first-child {display:none}
+  #layout {position:static;background:#273449;color:#fff;font-size:14px;padding:8px;border-radius:9px}
   </style>
 </head>
-<body>
+<body class="immersive">
 <div id="app">
   <div class="pane">
     <video id="cam" autoplay muted playsinline></video>
@@ -42,16 +45,17 @@
     <canvas id="ov"></canvas>
     <div class="hud" id="top"><div id="hand">HANDS: -</div><div id="stats">tracker: loading (build 7)</div></div>
 
-    <div id="status">Loading hand tracker…</div>
+
   </div>
   <div class="pane">
     <canvas id="gl"></canvas>
     <div id="rig-status">Loading hand models...</div>
     <button id="joints">JOINTS: ON</button>
-    <div id="mirror-label">HAND MIRROR</div>
+    <div id="mirror-label">3D HAND WINDOW</div>
     <div id="head-controls">
-      <select id="head-mode" aria-label="Camera movement"><option value="head">Camera: head</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
+      <select id="head-mode" aria-label="Camera movement"><option value="window">3D window (VR-like)</option><option value="head">Turn to look</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
       <button id="recenter">Recenter</button>
+      <button id="layout">Show camera</button>
       <div id="head-status" role="status">Look straight ahead to set the center</div>
     </div>
     <label id="zoom-label">Zoom <input id="zoom" aria-label="Mirror zoom" type="range" min="1" max="2" step="0.05" value="1"></label>
@@ -60,15 +64,17 @@
   </div>
 </div>
 
+<div id="status" style="position:fixed;z-index:10">Loading hand tracker…</div>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/" } }</script>
 <script type="module">
 import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
-import { HeadView } from "./head/HeadView.js?v=1";
+import { HeadView } from "./head/HeadView.js?v=window2";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
+$("layout").onclick = () => { const immersive=document.body.classList.toggle('immersive'); $("layout").textContent=immersive?'Show camera':'Immersive view'; applyView(true); };
 $("sample").value = Q.get("img") || "";
 $("sample").onchange = () => { const q = new URLSearchParams(location.search); if ($("sample").value) q.set("img", $("sample").value); else q.delete("img"); location.search = q.toString(); };
 // Assumed horizontal field of view of the phone camera (?fov=70 to override). Lateral motion does not depend on
@@ -260,6 +266,11 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure
 scene.add(new THREE.HemisphereLight(0xfff6ed,0xabb9ca,2.0));
 const key = new THREE.DirectionalLight(0xfff4e8,2.5);key.position.set(-.3,.5,.5);scene.add(key);
 const fill = new THREE.DirectionalLight(0xdceaff,1.3);fill.position.set(.4,.1,.3);scene.add(fill);
+// A stationary depth reference makes motion parallax visible even without a hand.
+const room = new THREE.Group(); scene.add(room);
+const roomEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(.9,.65,1.2)),new THREE.LineBasicMaterial({color:0x678396,transparent:true,opacity:.5}));
+roomEdges.position.set(0,0,-.9); room.add(roomEdges);
+const floorGrid = new THREE.GridHelper(1.2,12,0x678396,0x394b59); floorGrid.position.set(0,-.325,-.9); room.add(floorGrid);
 // --- 3D replica of one hand + its physics colliders ------------------------------------------------
 let jointOverlay = true;
 const replicas = [];
@@ -316,7 +327,7 @@ async function main() {
   $("status").remove();
   let headView = null;
   if (!imgSrc) {
-    try { headView = new HeadView(video, camera, { mode: $("head-mode"), recenter: $("recenter"), status: $("head-status") }); }
+    try { headView = new HeadView(video, camera, { mode: $("head-mode"), recenter: $("recenter"), status: $("head-status"), hfov: HFOV }); }
     catch { $("head-status").textContent = "Head tracking unavailable — hand tracking still works"; }
   } else {
     $("head-status").textContent = "Choose Live camera for head tracking";
@@ -384,7 +395,7 @@ async function main() {
     }
     $("rig-status").textContent = hud.length ? "" : "Hold your hand in front of the camera";
     $("hand").textContent = "HANDS: " + (hud.join("  |  ") || "-");
-    applyView(false); headView?.update(now, dt); renderer.render(scene, camera);
+    applyView(false); headView?.update(now, dt); room.visible=$("head-mode").value==='window'; renderer.render(scene, camera);
     requestAnimationFrame(loop);
   };
   loop();

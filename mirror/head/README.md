@@ -1,6 +1,26 @@
-# Head-controlled mirror camera
+# Head-tracked 3D window (default)
 
-The mirror starts in Head mode. Keep your face and hand in the front camera frame,
+The default is now a full-screen, head-coupled window into the scene. It tracks
+the midpoint of outer eye corners 33/263 and their 3D span to estimate lateral,
+vertical and distance changes relative to Recenter. Camera translation and an
+asymmetric perspective frustum keep the virtual screen plane at z=-0.35 fixed.
+There is no lookAt rotation in this mode. Background room/grid gives depth cues.
+Show camera restores the split view. Turn to look retains the earlier rotation mode.
+
+WindowPose assumes a neutral viewing distance of 0.45m and uses the capture FOV.
+Span ratios estimate distance; this is relative webcam head tracking, not measured
+screen geometry or stereo VR. Physical screen size, eye distance and lens calibration
+would be required for precise metric registration. Eye gaze does not rotate this
+window: moving the eye position produces parallax. Translation is clamped and
+smoothed (85ms), then returns home after face loss. No opponent is added.
+
+Projection tests verify all screen corners stay anchored as the eye translates,
+and points behind the window exhibit differential parallax. Device testing is
+still needed to tune the scale for a particular phone and viewing distance.
+
+## Optional rotation modes
+
+In Turn to look mode, keep your face and hand in the front camera frame,
 look straight ahead on acquisition, then turn gently. Recenter records a fresh
 neutral on the next detected frame. Fixed restores the original mirror projection.
 Head + eyes (beta) adds a small, approximate eye-direction contribution; this is
