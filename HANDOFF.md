@@ -803,3 +803,21 @@ intact at `docs/full.html` (build 17 + first-person default) and its modules (`d
 in git history. Harness: stills 5/9, tilt 0.07 %, ERRORS none; the two face stills FAIL by design (no head tracker).
 Owner feedback that led here: on the phone the avatar was stuck inside the map, and the index-finger navigation did not
 move him forward/back or turn reliably. Next: rebuild navigation on this base with the owner testing each step.
+
+## 26. Builds 21-24: skin, baked Thing skin, rigged drive, the folded-finger bug (2026-09-10, evening)
+
+- 21: room-environment lighting + ACES, 3D skeleton lines off by default (`?lines=1`), Thing rig fixed (exporter strips
+  dots from bone names: match with dots removed; bones anchored at their own rest heads), thickness from peak length.
+- 22: `docs/armthing_L/R.glb` = arms mesh with the Thing's skin baked on (per-vertex cage bake, validity refill; agent
+  report in this session), default hand. `?skin=arm` / `thing` / `hand.glb` remain.
+- 23: owner's phone showed tracker 104-137 ms / 6-9 fps at 12-19 cm ("very laggy") and: fingers whip thin or fat, hand
+  volume must be constant, crossed fingers impossible, a ghost second hand when shaking one. Changes: **rigged drive by
+  default** (fixed proportions at one settled size, only joints bend; `?fit=exact` for the stretch drive), finger/palm
+  collision off by default (`?pc=1`) - it blocked crossed fingers, handshake "held" ghost off (`?hold=1`), padding only on
+  the every-third-frame no-hand retry, pixel ratio 1, shadows off, MeshStandardMaterial instead of Physical, 384 px input.
+- 24: **folded fingers rendered straight** in the rigged drive (Codex's hypothesis, confirmed with the neutral clay
+  material `?mat=plain`): `poseFK`'s hyperextension clamp had its "backward" axis pointing to the palm side, so every curl
+  toward the palm was clamped to 8 deg. Also the finger's sideways axis now comes from the metacarpal (knuckle->tip is ~zero
+  when folded and erased the bend). After: V with folded ring/pinky, compact fist with thumb across, crossed fingers cross,
+  open hand (`sheet_plain2.png`). Codex owns `docs/movement/` (index-finger movement prototype) and left review notes in
+  `CODEX_HAND_REVIEW.md` / `CLAUDE_CORRECTION_PROMPT.md` at the repo root; the checkout is shared with it.
