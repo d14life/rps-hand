@@ -695,7 +695,9 @@ each mesh (colour, roughness, normal map).
 ### 22.5 Pointing navigation (owner's messages during the session)
 "When I [gesture] and move my hand from close to far I move forwards; from myself toward the camera I move back; move
 across the screen and my viewing angle changes." First asked as a pinch, then changed to **index finger out** ("a pinch
-would be too hard to see"). Implemented in the **first-person view only** (the mirror view must stay glued to the video):
+would be too hard to see"). Works in BOTH views: in the first-person view the camera and the hands move; in the mirror
+view the player, the camera and the hands move together (the hand transform is the mirrored one, R(-yaw), (-x, z)),
+so the hand overlay stays pixel-exact on the video while the room moves around it (verified: `sheet_navmirror.png`):
 pointing = index extended and middle/ring/pinky folded (the existing `fingersUp` rule). While pointing, the palm's
 displacement since the gesture started drives `nav`: pull toward yourself (z more negative) = forward along the view
 direction (`NAV_MOVE` 4 m per m), sideways drag = turn (`NAV_TURN` 4 rad per m, drag-the-world sign: drag to your right
