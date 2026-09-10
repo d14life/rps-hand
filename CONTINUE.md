@@ -11,9 +11,11 @@ open tuning problems. Then:
 1. Run the test harness to get a baseline before changing anything:
      python -m http.server 8765 --directory docs      (in one terminal)
      python fetch_test_media.py                        (once; downloads the Commons test photos/clips into docs/test)
-     python web_hard_test.py 18 all                    (needs the system Microsoft Edge; ~5 min)
-2. Keep working on MECHANICS only (tracking precision, stability with two hands, height/depth, latency).
-   A separate session builds the hand mesh; it will plug into hand.draw(pts) as described in HANDOFF §19.
+     python web_hard_test.py 18 all                    (needs the system Microsoft Edge; ~7 min)
+   Numbers only compare between runs on the SAME PC (tracker fps differs per GPU), and the rps clip starts
+   at a random point per run.
+2. Work on mechanics (tracking precision, stability with two hands, height/depth, latency) and on the
+   creature hand mesh (HANDOFF §22: normal-map bake, claw pinning, phone frame rate, pinch-navigation gains).
 3. Every change: rerun the harness, compare the numbers to the table in HANDOFF §20, look at the
    hard_*.png frames, then push docs/ to main (GitHub Pages redeploys https://tagirz500.github.io/rps-hand/
    in ~30 s; bump BUILD in docs/index.html so the phone readout shows the new build).
@@ -24,5 +26,6 @@ interact (handshake) without jumping; the 3D lines must match the video lines ex
 make height right; no opponent hand for now; exact tracked geometry, never canonical.
 ```
 
-The harness browser: Playwright's own Chromium is blocked on this PC; the harness launches the system
-Edge (`channel="msedge"`, new headless) which runs the tracker on the real GPU at 30 fps.
+The harness browser: Playwright's own Chromium is blocked on Tagir's PC; the harness launches the system
+Edge (`channel="msedge"`, new headless) which runs the tracker on the real GPU at 30 fps (40-70 fps on D1's PC).
+If `gh auth status` is not `tagirz500`, `git push origin` will be refused: push to a fork and open a PR instead.

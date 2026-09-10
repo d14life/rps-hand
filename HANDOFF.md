@@ -550,3 +550,120 @@ rps_hand/  (= github.com/tagirz500/rps-hand)
   rps_hand.py, test_rps_hand.py, assets/     desktop app (builds 1-4 era), dist/ and build/ git-ignored
   web_test.py, web_hard_test.py, fetch_test_media.py
 ```
+
+## 22. Build 14: creature hand mesh, picture-space gating, honest lag metric, pinch navigation (2026-09-10, session on D1's PC)
+
+This session ran on a different PC (`C:\Users\D1\Downloads\rps_hand`, gh account `d14life`, which has **no push
+rights** to tagirz500/rps-hand: changes go up as a fork + pull request, the owner merges and Pages redeploys).
+Mid-session the owner sent `creature_hand.zip` ("rig this hand and use it instead of what we have now"), so the
+"mechanics only" rule was lifted for the mesh.
+
+**Test PC difference.** The tracker runs at 40-70 fps here (30 on Tagir's PC), so `frames`, `dispJumps` and the
+per-frame thresholds are not directly comparable with the §20 table; compare runs on the same PC. The `rps`
+clip (48 s) starts at a random point of the loop per run, so its two-hand % swings 25-78 % between identical runs.
+
+### 22.1 New metric: `lag`
+`reproj` compared the displayed lines with the LAST ACCEPTED detection, so a frame the jump gate rejected did not
+count - the gate could hide its own lag. Now: every detection is remembered per slot before gating (`s.det`), `reproj`
+uses it, and **`lag`** = mean distance (% frame width) between a frame's raw landmarks and the points that were ON
+SCREEN at the render nearest to that frame's capture time (12-entry history per slot). `lag` includes pipeline
+latency, so prediction can only win here by landing where the hand really is. Harness prints both.
+
+### 22.2 Mechanics changes and their numbers
+- **Finding:** on the wave clip (hands 2.6-3.2 m away) 150-173 of ~950 frames were "spikes" and 30-46 "snaps",
+  i.e. the whole-hand jump gate fired on 16 % of frames of a genuine wave, each firing = a stale frame then a snap
+  that zeroed the prediction velocity. Cause: the gate measured jumps in METRES; at 3 m the size-from-shape depth
+  estimate jitters by 10-30 cm per frame, which is noise, not a hand switch.
+- **Jump gate now works in picture space** (`JUMP_IMG` 2.4 frame widths/s, i.e. 8 % of the frame per frame at 30 fps),
+  with a constant-velocity consistency test (a jump that continues the previous motion within half a jump is
+  accepted at once), plus a depth criterion `DEPTH_JUMP` 0.45 (a 57 % depth change in one frame is gated like a
+  picture jump). Handover to the other slot is also decided in picture space (< 12 % of the frame).
+- **Depth rate limit** `DEPTH_RATE` 9/s (log units, 35 % per frame at 30 fps): a faster depth change scales the whole
+  hand about the camera (its picture stays exactly where the tracker put it, only the depth moves less). Counted as
+  `depthClamps`.
+- **Noise model:** depth deadband/full-follow are now fractions of the depth (`NOISE.z` 2 % / 7.5 %, = the old
+  8/30 mm at 0.4 m). Lateral thresholds stay ABSOLUTE (3/15 mm): a build that scaled them with depth too made reproj
+  on the far wave hands 3x worse (0.22 -> 0.62 %) because the landmark model works on a hand crop, so its lateral
+  error in metres barely depends on distance.
+- The rigid predict/smooth pipeline, handshake rule, adaptive padding and tilt are unchanged.
+
+Numbers, this PC, 18 s per clip, predict mode, `python web_hard_test.py 18 videos` (b13 = the shipped build 13
+re-measured here with the new metric; b14 = the pushed build; each line is one run):
+
+| clip | spikes b13 -> b14 | snaps | dispJumps | reproj % | lag % | two-hand % |
+|---|---|---|---|---|---|---|
+| wave (3 hands waving, 2.6-3.2 m) | 150 -> 0 | 30 -> 0 | 73 -> 43 | 0.22 -> 0.12 | 0.53 -> 0.45 | 99 -> 98 |
+| gesture67 (fast, near) | 199 -> 63 | 57 -> 32 | 112 -> 84 | 0.86 -> 0.78 | 1.74 -> 1.68 | 93 -> 93 |
+| counting | 0 -> 2 | 0 -> 0 | 2 -> 0 | 0.27 -> 0.26 | 0.34 -> 0.30 | 97 -> 99 |
+| handclap | 90 -> 20 | 44 -> 13 | 75 -> 121 | 1.16 -> 0.87 | 4.06 -> 3.42 | 5 -> 4 |
+| cleanhands | 34 -> 58 | 5 -> 11 | 22 -> 20 | 1.26 -> 2.19 | 3.39 -> 3.64 | 4 -> 4 |
+| handwash | 48 -> 13 | 12 -> 4 | 33 -> 30 | 1.28 -> 0.61 | 2.04 -> 1.76 | 2 -> 2 |
+| rps (random loop start) | 25 -> 3 | 6 -> 2 | 19 -> 36 | 0.36 -> 0.26 | 0.56 -> 0.51 | 25 -> 59 |
+
+Stills unchanged: 5/9 labelled moves, tilt simulation reproj 0.05 %. Two intermediate builds were measured and
+rejected on these numbers: (a) picture-space gate + depth-relative LATERAL deadband: wave reproj 0.62 %, lag 1.05 %;
+(b) same with absolute lateral deadband but depth still filtered in metres: wave reproj 0.33 %, lag 0.61 % - the
+mismatch between separately smoothed X and Z moved the lines off the picture, which is what led to filtering in
+picture space + depth. Reading the remaining regressions: cleanhands/handclap are the clasped-hands clips where
+MediaPipe returns one hand ~96 % of the time; their `reproj`/`lag` mostly measure the handshake "held" ghost
+against stale detections, and `dispJumps` there counts hand switches the gate now lets through when they continue
+the motion. `held` (411-534 frames on cleanhands) is the number to bring down next, not the gate.
+
+### 22.3 The creature hand (owner's ZBrush sculpt) - how it was rigged
+Source `creature_hand.zip` (733 MB): `.ZTL`, one FBX (no rig, no UVs, no colours), three OBJ poses of the same
+2 M-quad mesh (pose 1 grasping, pose 2 open, pose 3 clawing), STLs. Pipeline (Blender 4.5.3 headless, scripts
+`prep.py`, `joints2.py`, `rig.py` - kept in the session scratchpad, easy to recreate from this description):
+1. Import pose 2 (open hand) with polygroups split: one 1.67 M-face body + four distal-finger groups + the wrist cuff.
+   Decimate to ~61 k triangles (body 26 k faces target, small groups 700-1200), tag the distal groups, join, shade smooth.
+2. Frame: OBJ x = across the hand, y = along it (fingers toward -y, wrist cut at y = 3.66), z = thickness. Knuckles
+   bulge toward +z, fingertips curl toward -z, so the **palm faces -z**; with the thumb at +x the sculpt is a **right hand**.
+3. The 21 MediaPipe joints were placed by measurement, not by eye: per finger an x band, the fleshy tip = min y of the
+   band + 0.55, MCP row from the knuckle bumps (y -1.4 .. -1.7), PIP/DIP at 45 % / 76 % of MCP->tip, each joint's x and
+   z = centre of the mesh cross-section at that y (z = midpoint of the z extent, not the vertex mean, which the dense
+   wrinkled palm side biased). Thumb and wrist from local slabs. Verified by rendering red spheres + bones over the
+   x-ray mesh from palm, back and side (three iterations). Joints are in `docs/creature_hand.json` (mesh units,
+   ~1 unit = 2.5 cm).
+4. Armature: 20 bones, **no hierarchy**, bone `b<j>` runs from joint PARENT[j] to joint j. Automatic (bone heat)
+   weights, 0 unweighted vertices. Exported `docs/creature_hand.glb` (1.7 MB, 30.8 k vertices, 61 k triangles,
+   nodes at identity, coordinates = OBJ coordinates).
+
+### 22.4 How the page drives it (`boneFrame`, `makeSkin`)
+`hand.draw(pts)` is unchanged for callers. Per bone and per frame a 4x4 is built from the tracked points: origin at
+the parent joint, y axis along the bone scaled to the **tracked** length, x from a twist reference (across-palm
+direction 5->17 for finger bones, palm normal for thumb bones, blended continuously when a bone approaches its
+reference), z = x cross y, x/z scaled by the tracked-to-bind ratio of the palm length 0->9. The bind inverse of
+each bone is the same function evaluated on the bind joints, so the bind pose maps to identity and Blender's bone
+rolls are irrelevant. Bones are flat children of the SkinnedMesh with `matrixAutoUpdate = false`; the mesh is bound
+with an identity bind matrix, so the skin lands exactly on the tracked points in the hand group's space (the mirror
+view's `scale.x = -1` still applies to the group). **No canonical lengths anywhere** - the skin stretches to the
+tracked geometry, the green skeleton lines still sit exactly on the video lines.
+- **Handedness** comes from the geometry, not from MediaPipe's flickering label: sign of (tip 4 - wrist) .
+  ((5-0) x (17-0)) is + for a right hand (the thumb sits on the palm side); smoothed per slot. The left hand is the
+  GLB mirrored in x with reversed winding and its own bind inverses. Verified on `victory.jpg` with the `?cam=` debug
+  camera: the palm (creases) faces the phone, the claws sit on the back.
+- The capsule hand remains as the fallback when the GLB cannot load (`?skin=0` forces it). HUD shows `mesh`/`capsules`.
+- Skin shaders are compiled at start (`renderer.compile` with both hands drawn once); before that the first
+  appearance of a hand stalled the page ~3 s on this PC's GPU.
+- Two hands = 122 k skinned triangles + shadow pass: 43-48 fps here with the tracker running; not yet measured on a phone.
+
+### 22.5 Pinch navigation (owner's message during the session)
+"When I pinch and move my hand from close to far I move forwards; from myself toward the camera I move back; pinch and
+move across the screen and my viewing angle changes." Implemented in the **first-person view only** (the mirror view
+must stay glued to the video): pinch = thumb tip within 0.3 palm lengths of the index tip while the index counts as
+extended (a fist does not pinch), release above 0.5. While pinching, the palm's displacement since the pinch started
+drives `nav`: pull toward yourself (z more negative) = forward along the view direction (`NAV_MOVE` 4 m per m),
+sideways drag = turn (`NAV_TURN` 4 rad per m, drag-the-world sign: drag to your right = look left). The hands travel
+with the player (the tracked points are rotated/offset before `hand.draw`, so colliders follow too). RESET OBJECTS also
+resets nav; HUD shows `nav <m> <deg> (pinch+drag)` in first-person view; `?nav=x,z,yaw` presets it for render checks.
+Not yet felt on a real phone: gains and the turn sign are the first things to tune.
+
+### 22.6 Repo additions
+`docs/creature_hand.glb`, `docs/creature_hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
+`baseline_b13*.txt` / `run_b14*.txt` (harness logs of this session). Query parameters added: `?skin=0`, `?cam=x,y,z,tx,ty,tz`, `?nav=x,z,yaw`.
+
+### 22.7 Open items after build 14
+1. Try it on the phone: mesh frame rate, pinch gains/sign, whether the wrist cuff (the sculpt's cut forearm) should be hidden.
+2. Bake a normal map from the 2 M-quad sculpt onto the 61 k mesh (needs UVs: smart-project + Cycles bake) to get the
+   wrinkles back; the decimated mesh is smooth.
+3. Claws are skinned like skin; pin the distal polygroup vertices 100 % to the tip bones if they bend.
+4. Everything in §20's open list (curl-angle move detection, stable-gesture hold) is still open.
