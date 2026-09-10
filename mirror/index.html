@@ -29,6 +29,9 @@
   #zoom-label {position:absolute;bottom:16px;right:16px;display:flex;align-items:center;gap:9px;font-size:13px;color:#e8ded2}
   #zoom {width:100px;accent-color:#e7ceba} #joints {top:12px} #rig-status {bottom:64px}
   #sample {top:88px} #gl {background:#242b31} #mode {font-size:12px}
+  #head-controls {position:absolute;top:54px;left:12px;right:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #head-mode, #recenter {position:static;background:#273449;color:#eef1f5;border:1px solid #526070;border-radius:9px;padding:8px;font:14px system-ui}
+  #head-status {flex-basis:100%;font-size:12px;color:#d3e4dd;text-shadow:0 1px 3px #000;pointer-events:none}
   </style>
 </head>
 <body>
@@ -46,6 +49,11 @@
     <div id="rig-status">Loading hand models...</div>
     <button id="joints">JOINTS: ON</button>
     <div id="mirror-label">HAND MIRROR</div>
+    <div id="head-controls">
+      <select id="head-mode" aria-label="Camera movement"><option value="head">Camera: head</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
+      <button id="recenter">Recenter</button>
+      <div id="head-status" role="status">Look straight ahead to set the center</div>
+    </div>
     <label id="zoom-label">Zoom <input id="zoom" aria-label="Mirror zoom" type="range" min="1" max="2" step="0.05" value="1"></label>
     <button id="mode">MODE: predict</button>
 
@@ -56,6 +64,7 @@
 <script type="module">
 import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
+import { HeadView } from "./head/HeadView.js?v=1";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
@@ -305,6 +314,14 @@ async function main() {
   const models = { Right: rightModel, Left: leftModel };
   const tracker = await makeTracker();
   $("status").remove();
+  let headView = null;
+  if (!imgSrc) {
+    try { headView = new HeadView(video, camera, { mode: $("head-mode"), recenter: $("recenter"), status: $("head-status") }); }
+    catch { $("head-status").textContent = "Head tracking unavailable — hand tracking still works"; }
+  } else {
+    $("head-status").textContent = "Choose Live camera for head tracking";
+    $("head-mode").disabled = $("recenter").disabled = true;
+  }
 
   // one slot per hand, keyed by MediaPipe's handedness label
   const slots = { Right: null, Left: null };
@@ -367,7 +384,7 @@ async function main() {
     }
     $("rig-status").textContent = hud.length ? "" : "Hold your hand in front of the camera";
     $("hand").textContent = "HANDS: " + (hud.join("  |  ") || "-");
-    applyView(false); renderer.render(scene, camera);
+    applyView(false); headView?.update(now, dt); renderer.render(scene, camera);
     requestAnimationFrame(loop);
   };
   loop();

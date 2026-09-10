@@ -16,6 +16,7 @@ The separate root `index.html` is the newer upstream application (build 9 when t
 | `mirror/hand/rig.json` | 21 names, hierarchy and rest joint coordinates paired with that GLB |
 | `mirror/hand/verify.html` | Joint/weight/shader checks and interactive pose fixtures |
 | `mirror/hand/fixtures.json` | Detector outputs for the sample poses |
+| `mirror/head/` | Independent face worker, head/approximate-eye camera control, tests and method README |
 | `assets/hand-rig/current-rig.blend` | Editable import of the current delivered GLB, including nails |
 | `assets/hand-rig/reference-rest.blend` | Unrigged, already oriented/optimized reference mesh, with packed textures |
 | `assets/hand-rig/landmarks.blender.json` | Corresponding reference centres in Blender coordinates |
@@ -26,6 +27,11 @@ The separate root `index.html` is the newer upstream application (build 9 when t
 | `tools/hand-rig/reference/` | Original source-specific scripts retained as implementation history; not the portable entrypoints |
 
 Hosted mirror: https://sculpture-hand-motion.fy71209.chatgpt.site/mirror/
+
+The mirror now defaults to head-controlled camera movement, with Recenter, Fixed,
+and optional Head + eyes (beta). See `mirror/head/README.md` for mapping, smoothing,
+loss handling and limits. Use **Camera: fixed** when comparing model joints to
+video dots: head movement intentionally changes the projection, not the rig.
 
 ## Run the current example
 
