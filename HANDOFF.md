@@ -707,6 +707,18 @@ next to the hand; `?nav=x,z,yaw` presets it for render checks. Not yet felt on a
 are the first things to tune. The pointing pose is also the RPS "no move" pose, so navigation and a round do not
 interfere.
 
+### 22.5b Owner-placed joints, LOD, placement page (later the same session)
+- The owner rejected the automatically placed joints ("let me place them properly") - `docs/place.html` is a tap-to-place
+  page: loads `hand.glb` (or `?skin=file.glb`) with its bind joints, tap a joint in the list then tap the mesh; the joint is
+  set at mid-thickness (entry/exit ray midpoint); views back/palm/side; undo; copy/download JSON. The owner's JSON is
+  `scratchpad/user_joints.json` (glTF coords); ring and pinky PIP/DIP were redistributed to 45 %/76 % of knuckle->tip
+  (`user_joints_fixed.json`, `joints_hand1_blender_user.json` in Blender coords) - everything else is as placed.
+- **LOD**: the page loads `<export>_hi.glb` in the background after the phone mesh and, per hand and frame, shows it
+  when palm length / depth > `LOD_NEAR` 0.15 rad (closer than ~60 cm). Both LODs must share bones and bind joints
+  (one `<export>.json`). Owner: "use the proper scan on the phone, just optimise: far = no detail, close = all detail".
+- Thickness is one per-hand constant now (palm-length ratio settled with a 0.01 EMA): the owner saw fingers swell when
+  the hand came close (the tracked lengths inflate near the camera).
+
 ### 22.6 Repo additions
 `docs/hand.glb`, `docs/hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
 `web_compare.py` (real-vs-mesh sheet over 22 hand positions), `angles_probe.py` (3D vs picture finger bends),
