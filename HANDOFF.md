@@ -4,7 +4,10 @@ Rock-paper-scissors game where the camera tracks every finger joint of the playe
 copies the motion live. Built 2026-09-10 by Claude for Tagir and his brother. This document is written so a
 different AI model (or person) can continue the work with no other context.
 
-Everything lives in `C:\Users\tagir\Downloads\rps_hand\` on Tagir's PC.
+Everything lives in `C:\Users\tagir\Downloads\rps_hand\` on Tagir's PC and in https://github.com/tagirz500/rps-hand.
+
+> **Path note (2026-09-10, late):** the web app folder `web/` was renamed to `docs/` so GitHub Pages can serve it
+> from the same repo as everything else. Every `web/` below now means `docs/`.
 
 ---
 
@@ -490,3 +493,60 @@ Tilt simulation (beta 60 = camera 30° up): reproj 0.03 %, hand rises in the roo
 looking down -z (your right hand has x < 0). `hand.hide()` removes it. Bone lengths are the tracked ones
 (not canonical). Replace `makeHand()` with a skinned mesh that binds to these 21 points and nothing else
 in the pipeline changes. Thenar web = points 1-2-5, palm = 0-5-9-13-17.
+
+## 20. Build 13: tuning round on labelled photos and seven clips (2026-09-10, late)
+
+Owner: "keep testing on different pictures and tuning it", then "upload everything so I continue in a new session".
+
+**Test set** (`fetch_test_media.py`, all Wikimedia Commons): labelled stills victory/peace/dirty_peace/robbie_v
+(SCISSORS), fist_pump/raised_fist (ROCK), woman_hands/crossed_hands (PAPER), scissors_png (a drawing);
+unlabelled crossed1/2, handshake1/2, count5. Clips: rps (real rock-paper-scissors, 48 s), wave (fast wave),
+counting (finger counting 1-5), gesture67 (fast two-hand gesture), handclap (kids clapping game), cleanhands,
+handwash. `python web_hard_test.py 18 all [rps,wave,...]` runs stills, a tilt simulation, and the clips.
+
+**Findings and changes**
+- Frame-filling hands are missed by the palm detector (raised_fist, dirty_peace) and hands near the edge get
+  worse landmarks. A grey border around the input finds the fist at 30 % padding and cuts the fit error by
+  30-45 % on close-ups, BUT a fixed border shrinks far hands out of range (wave clip detection 98 % -> 0 %).
+  Build 13 pads adaptively: `PAD` 0.3 when the tracked palm length exceeds 22 % of the frame's short side
+  (hysteresis: unpad below 15 %, hold >= 1 s, because padded and unpadded inference give slightly different
+  depths and flipping every frame caused jumps), plus a padded attempt every third frame while no hand is found.
+- The jump gate froze the hand during a sustained fast wave (each new frame was another 10 cm on, never
+  "within 6 cm of pending"). Now a pending jump is confirmed when the next sample is closer to the pending
+  position than to the old one, and the threshold is a speed (`JUMP_SPEED` 3.6 m/s x frame interval).
+- Still misses that remain are model limits: dirty_peace (soiled skin texture, never detected even padded),
+  robbie_v and fist_pump (hand tiny in a wide shot), scissors_png (a drawing; landmarks misplace the ring finger
+  -> reads PAPER). Handshake photos: 0-1 hands (clasped hands, see §19).
+
+| clip (18 s, 30 fps) | b12 two-hand % | b13 two-hand % | b12 dispJumps | b13 dispJumps | b13 reproj |
+|---|---|---|---|---|---|
+| rps | 73 | 69-72 | 29 | 24-34 | 0.36 % |
+| wave | 98 | 98 | 57 (hand froze) | 81 (follows) | 0.25 % |
+| counting | 100 | 100 | 0 | 1 | 0.31 % |
+| gesture67 | 91 | 92 | 81 | 98 (genuine fast motion) | 0.92 % |
+| cleanhands | 5 | 4 | 17 | 24 | 1.6 % |
+| handwash | 1 | 1 | 15 | 21 | 0.7 % |
+
+Labelled stills: 4/9 -> 5/9 (raised_fist gained). `dispJumps` counts displayed palm moves > 10 cm between
+rendered frames; on wave/gesture67 those are real 3 m/s motions, not errors - reproj (0.25-0.9 %) is the
+number that says the lines still sit on the video.
+
+**Open tuning ideas, in order**
+1. Move detection from finger CURL ANGLES (3D angle at each middle joint) instead of tip-vs-knuckle distance;
+   the distance rule misreads angled views (scissors_png -> 3 up). Score it on the labelled stills first.
+2. A stable-gesture hold before a round locks (majority vote over ~300 ms).
+3. Look at `hard_gesture67_*.png` / `hard_wave_*.png` frame by frame: decide whether the remaining displayed
+   jumps are real motion (leave) or hand-switches (raise `handovers`).
+4. Depth noise: `NOISE.z` deadband; try 0.006 / 0.025 and watch `reproj` and the depth readout jitter on a still.
+5. The desktop Python app has none of builds 5-13; port only if the exe is still wanted.
+
+## 21. Repo layout after the handoff
+
+```
+rps_hand/  (= github.com/tagirz500/rps-hand)
+  README.md, HANDOFF.md (this), CONTINUE.md (paste into a new session), SESSION_NOTES.md (the AI's memory note)
+  docs/index.html          the web app (GitHub Pages serves docs/ at the site root)
+  docs/test/               Commons test media (handclap.webm, handwash.webm git-ignored: fetch_test_media.py)
+  rps_hand.py, test_rps_hand.py, assets/     desktop app (builds 1-4 era), dist/ and build/ git-ignored
+  web_test.py, web_hard_test.py, fetch_test_media.py
+```
