@@ -1,0 +1,28 @@
+# Paste this into a new Claude Code session to continue
+
+```
+Continue the RPS Hand project. Repo: https://github.com/tagirz500/rps-hand (on Tagir's PC it is
+C:\Users\tagir\Downloads\rps_hand, already a git checkout of that repo).
+
+Read HANDOFF.md completely before doing anything - it is the full history, design, gotchas, test harness,
+metrics and the contract for the hand mesh. Sections 19-20 describe the current state (build 13) and the
+open tuning problems. Then:
+
+1. Run the test harness to get a baseline before changing anything:
+     python -m http.server 8765 --directory docs      (in one terminal)
+     python fetch_test_media.py                        (once; downloads the Commons test photos/clips into docs/test)
+     python web_hard_test.py 18 all                    (needs the system Microsoft Edge; ~5 min)
+2. Keep working on MECHANICS only (tracking precision, stability with two hands, height/depth, latency).
+   A separate session builds the hand mesh; it will plug into hand.draw(pts) as described in HANDOFF §19.
+3. Every change: rerun the harness, compare the numbers to the table in HANDOFF §20, look at the
+   hard_*.png frames, then push docs/ to main (GitHub Pages redeploys https://tagirz500.github.io/rps-hand/
+   in ~30 s; bump BUILD in docs/index.html so the phone readout shows the new build).
+4. Report what changed in the numbers, not just what you edited.
+
+Rules the owner has set: predict/smooth must not drift from the hand on fast moves; two hands must
+interact (handshake) without jumping; the 3D lines must match the video lines exactly; tilt levelling must
+make height right; no opponent hand for now; exact tracked geometry, never canonical.
+```
+
+The harness browser: Playwright's own Chromium is blocked on this PC; the harness launches the system
+Edge (`channel="msedge"`, new headless) which runs the tracker on the real GPU at 30 fps.
