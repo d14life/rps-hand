@@ -150,3 +150,5 @@ https://www.cgtrader.com/free-3d-models/character/human-anatomy/hand-e378a8c0-8a
 **That model has not been downloaded or used.** CGTrader displayed a sign-in requirement at Free Download. The page lists OBJ and ZTL. Obtain the actual source through the user's authorized account/file before replacing the mesh; do not claim the current hand is that model.
 
 The supplied sculpture is now the tracked head: mirror/avatar/head.glb. Its neck was cut below the jaw and capped. See mirror/avatar/README.md, assets/head-rig/head-only.blend, and tools/head-rig/build.py (run through Blender in background mode). The first-person camera hides its own head, while a collapsible preview shows it following the tracked pose.
+
+Hand-driven object inspection now lives in mirror/interaction/. Pinch near a highlighted cube, knot, or sculpture to pick it up; wrist translation/rotation maps through the same world transform as the rendered hands. Release leaves it in place; tracking loss releases safely; Reset objects restores the layout. See interaction/README.md and interaction/verify.html for the method and tests.

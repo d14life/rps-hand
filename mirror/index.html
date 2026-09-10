@@ -38,6 +38,10 @@
   #head-preview {position:absolute;left:12px;bottom:62px;background:#192633;border:1px solid #526070;border-radius:10px;overflow:hidden}
   #head-preview summary {padding:8px;font-size:12px;cursor:pointer;color:#e6eef3}
   #head-canvas {display:block;width:140px;height:170px}
+  #object-controls {position:absolute;left:12px;right:12px;bottom:52px;display:flex;align-items:center;gap:8px;pointer-events:none}
+  #object-reset {position:static;pointer-events:auto;padding:8px;background:#273449;color:#fff;font-size:13px}
+  #object-status {font-size:12px;text-shadow:0 1px 4px #000;background:#192633bb;padding:5px;border-radius:6px}
+  #head-preview {bottom:110px}
   </style>
 </head>
 <body class="immersive">
@@ -63,6 +67,7 @@
     </div>
     <label id="zoom-label">Zoom <input id="zoom" aria-label="Mirror zoom" type="range" min="1" max="2" step="0.05" value="1"></label>
     <button id="mode">MODE: predict</button>
+    <div id="object-controls"><button id="object-reset">Reset objects</button><div id="object-status">Reach toward an object and pinch to grab</div></div>
     <details id="head-preview" open><summary id="head-label">Loading your head…</summary><canvas id="head-canvas" aria-label="Tracked sculpture head preview"></canvas></details>
 
   </div>
@@ -75,6 +80,7 @@ import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
 import { HeadView } from "./head/HeadView.js?v=headonly4";
 import { TrackedHead } from "./avatar/TrackedHead.js?v=headonly4";
+import { HandObjects } from "./interaction/HandObjects.js?v=1";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
@@ -283,6 +289,8 @@ const roomEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGe
 roomEdges.position.set(0,0,-.9); room.add(roomEdges);
 const floorGrid = new THREE.GridHelper(1.2,12,0x678396,0x394b59); floorGrid.position.set(0,-.325,-.9); room.add(floorGrid);
 const firstRoom = new THREE.Group(); scene.add(firstRoom);
+const handObjects=new HandObjects(scene,$("object-status"));
+$("object-reset").onclick=()=>handObjects.reset();
 const roomShell=new THREE.Mesh(new THREE.BoxGeometry(6,3.5,7),new THREE.MeshStandardMaterial({color:0x344653,roughness:1,side:THREE.BackSide}));
 roomShell.position.set(0,.45,-1.5); firstRoom.add(roomShell);
 const ground=new THREE.GridHelper(6,24,0x9eacb7,0x526674); ground.position.set(0,-1.29,-1.5); firstRoom.add(ground);
@@ -400,6 +408,7 @@ async function main() {
     const now = performance.now(), dt = Math.min((now - prev) / 1000, 1 / 30); prev = now;
     pump();
     const hud = [];
+    const interactionHands=[];
     move = null;
     for (const s of [slots.Right, slots.Left]) {
       const visible = now - s.lastSeen < hold;   // dead-reckon through short dropouts, then remove the hand from the scene
@@ -407,6 +416,7 @@ async function main() {
         const lead = Math.min(MAX_LEAD, Math.max(0, (now - s.lastSeen) / 1000 + 0.02));
         const pts = MODES[mode] === "predict" ? s.filt.predict(lead) : MODES[mode] === "smooth" ? s.filt.x : s.raw;
         s.hand.draw(toVecs(pts), true, s.rigSide);
+        interactionHands.push({id:s.key,stamp:s.lastSeen,points:toVecs(pts)});
       } else s.hand.hide();
       if (visible) { move ??= moveFromFingers(s.ext); hud.push(`${s.name[0]} ${s.depth.toFixed(2)}m ${s.ext.filter(Boolean).length}up fit ${(s.fit * 100).toFixed(1)}%`); }
     }
@@ -414,7 +424,7 @@ async function main() {
       $("stats").textContent = `tracker: ${(stat.ms / (stat.n || 1)).toFixed(0)} ms | ${stat.n} fps | latency ${(stat.lat / (stat.n || 1)).toFixed(0)} ms | hands ${nHands}\n${tracker.where} | mode ${MODES[mode]} | build ${BUILD} | rig 2`;
       stat = { ms: 0, lat: 0, n: 0, t: now };
     }
-    $("rig-status").textContent = hud.length ? "" : "Hold your hand in front of the camera";
+    $("rig-status").textContent = hud.length || $("head-mode").value==='first' ? "" : "Hold your hand in front of the camera";
     $("hand").textContent = "HANDS: " + (hud.join("  |  ") || "-");
     applyView(false); headView?.update(now, dt);
     const viewMode=$("head-mode").value, first=viewMode==='first';
@@ -427,6 +437,11 @@ async function main() {
     // A small virtual reach offset keeps the independently estimated face/hand
     // depth scales from putting the near clip plane through the fingers.
     worldGroup.position.set(-origin[0],-origin[1],-origin[2]-(first?.30:0));
+    worldGroup.updateMatrixWorld(true);
+    // The grip uses exactly the rendered hand transform, including eye origin,
+    // first-person rotation and reach offset. Head motion is not applied twice.
+    for(const hand of interactionHands)for(const p of hand.points)p.applyMatrix4(worldGroup.matrixWorld);
+    handObjects.update(imgSrc?[]:interactionHands,now,first);
     $("mirror-label").textContent=first?'FIRST PERSON · YOUR HANDS':viewMode==='window'?'3D HAND WINDOW':'HAND MIRROR';
     renderer.render(scene, camera);
     avatar?.update(camera,headView,now);
