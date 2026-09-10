@@ -5,10 +5,11 @@
 </style></head><body>
 <canvas id="gl"></canvas><video id="cam" autoplay muted playsinline></video>
 <div id="controls"><h1>HEAD VR VIEW</h1><select id="head-mode" aria-label="Head tracking"><option value="first">Head tracking on</option><option value="off">Pause view</option></select><button id="recenter">Recenter</button><button id="show-camera">Show camera</button><label>Head turn <input id="head-sensitivity" aria-label="Head turn sensitivity" type="range" min="3" max="8" step="0.5" value="5"><output id="gain">5×</output></label><div id="head-status" role="status">Look straight ahead to set the center</div></div>
-<details id="head-preview"><summary id="head-label">Your head</summary><canvas id="head-canvas" aria-label="Tracked sculpture head preview"></canvas></details><div id="hint">Keep the phone still.<br>Lean gently, then return to centre.</div><div id="status">Starting camera…</div>
+<details id="head-preview"><summary id="head-label">Your head</summary><canvas id="head-canvas" aria-label="Tracked sculpture head preview"></canvas></details><div id="hint">Look into the mirror.<br>Turn or lean to test your reflection.</div><div id="status">Starting camera…</div>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
+import {Reflector} from 'three/addons/objects/Reflector.js';
 import {HeadView} from './head/HeadView.js?v=lean5';
 import {TrackedHead} from './avatar/TrackedHead.js?v=headonly4';
 const $=id=>document.getElementById(id), Q=new URLSearchParams(location.search);
@@ -20,13 +21,21 @@ const shell=new THREE.Mesh(new THREE.BoxGeometry(6,3.5,7),new THREE.MeshStandard
 const floor=new THREE.GridHelper(6,24,0x9eacb7,0x526674);floor.position.set(0,-1.29,-1.5);scene.add(floor);
 const table=new THREE.Mesh(new THREE.BoxGeometry(1.8,.06,.8),new THREE.MeshStandardMaterial({color:0x997c61,roughness:.85}));table.position.set(0,-.55,-1);scene.add(table);
 for(const x of [-.8,.8])for(const z of [-.7,-1.3]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.05,.72,.05),new THREE.MeshStandardMaterial({color:0x1c2730,roughness:.6}));leg.position.set(x,-.94,z);scene.add(leg);}
+// Real planar reflection. Layer 1 contains the head hidden from its own eyes.
+const mirror=new Reflector(new THREE.PlaneGeometry(.95,1.05),{color:0xc5cdd5,textureWidth:768,textureHeight:768,clipBias:.003,multisample:0});
+mirror.position.set(0,.035,-.78);scene.add(mirror);
+mirror.getReflectionCamera(camera).layers.enable(1);
+const frameMaterial=new THREE.MeshStandardMaterial({color:0xb5a791,metalness:.65,roughness:.3});
+for(const [x,y,w,h] of [[-.49,.035,.03,1.11],[.49,.035,.03,1.11],[0,.575,.95,.03],[0,-.505,.95,.03]]){
+ const bar=new THREE.Mesh(new THREE.BoxGeometry(w,h,.035),frameMaterial);bar.position.set(x,y,-.79);scene.add(bar);
+}
 let avatar=null,head=null;
 try{avatar=new TrackedHead(scene,$('head-canvas'),$('head-label'));}catch{$('head-label').textContent='Head preview unavailable';}
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=2*Math.atan(Math.tan(50*Math.PI/180)/Math.max(1,w/h))*180/Math.PI;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 $('head-sensitivity').oninput=()=>$('gain').textContent=$('head-sensitivity').value+'×';
 $('show-camera').onclick=()=>{$('show-camera').textContent=document.body.classList.toggle('show-camera')?'Hide camera':'Show camera';};
-let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.1);last=now;head?.update(now,dt);renderer.render(scene,camera);avatar?.update(camera,head,now);requestAnimationFrame(loop);}requestAnimationFrame(loop);
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.1);last=now;head?.update(now,dt);avatar?.update(camera,head,now);renderer.render(scene,camera);requestAnimationFrame(loop);}requestAnimationFrame(loop);
 async function start(){
  if(Q.has('preview')){$('status').remove();$('head-status').textContent='Scene preview · open without ?preview for live head tracking';$('recenter').disabled=true;return;}
  const video=$('cam');video.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}},audio:false});await video.play();

@@ -17,3 +17,5 @@ head tracking; the sculpture does not contain an expression/blink rig.
 
 Editable cropped source and the processing script are included in the GitHub
 handoff under `assets/head-rig/` and `tools/head-rig/`.
+
+The main room now includes a framed planar mirror using Three.js Reflector. Its reflection camera enables layer 1 to show the local head; the first-person camera still excludes that layer. Avatar transforms update before the main scene render to keep reflections current. The 768x768 reflection target has MSAA disabled for mobile cost.
