@@ -1,4 +1,4 @@
-import { ViewPose, WindowPose, windowFrustum, firstPersonOrigin, gentleHeadTranslation } from './pose.mjs?v=lean5';
+import { ViewPose, WindowPose, windowFrustum, firstPersonOrigin, gentleHeadTranslation } from './pose.mjs?v=body6';
 
 export class HeadView {
   constructor(video, camera, { mode, recenter, status, sensitivity, hfov = Math.PI/3 }) {
@@ -35,7 +35,7 @@ export class HeadView {
     const { yaw, pitch } = this.pose.update(now, dt);
     let eye = [...this.window.update(now, dt, this.mode === 'window' || this.mode === 'first')];
     this.origin=firstPersonOrigin(this.window.neutral,this.video.videoWidth/this.video.videoHeight,this.hfov);
-    if (this.mode === 'first') eye=gentleHeadTranslation(eye,this.origin[2],yaw);
+    if (this.mode === 'first') eye=gentleHeadTranslation(eye,this.origin[2]);
     this.camera.position.set(...eye);
     this.camera.rotation.set(this.mode === 'window' ? 0 : pitch, this.mode === 'window' ? 0 : yaw, 0, 'YXZ');
     this.camera.updateProjectionMatrix();

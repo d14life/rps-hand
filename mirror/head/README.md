@@ -1,3 +1,5 @@
+CURRENT: Head rotation and translation are separate. Default turn gain is 1.5x (UI range 0.5-4x). Translation is 2x estimated physical movement, capped at 0.50m left/right/forward/back and 0.30m vertically. Head angle is never applied to the translation vector. Third person observes the head and restored world-tracked hands; first person includes the planar mirror. The mirror/frame are hidden only in third-person inspection to avoid blocking the avatar. LiveHands.js runs the existing detector and smoothing independently of the face worker. Recorded fixtures are used only with ?preview, clearly labelled.
+
 # Head-only first-person viewing on a flat screen
 
 No gaze, iris, blink or expression output drives this app. FaceLandmarker runs

@@ -61,12 +61,12 @@ export function firstPersonOrigin(neutral, aspect, hfov) {
   return [-k*(neutral.centerX-.5)*depth,-k*(neutral.centerY-.5)*depth/aspect,depth];
 }
 
-export function gentleHeadTranslation(offset, depth, yaw) {
-  const scale=.65*depth/.45;
-  const x=clamp(offset[0]*scale,.12), y=clamp(offset[1]*scale,.10);
-  const z=clamp(offset[2]*scale,.15), c=Math.cos(yaw), s=Math.sin(yaw);
+export function gentleHeadTranslation(offset, depth) {
+  const scale=2*depth/.45;
+  const x=clamp(offset[0]*scale,.50), y=clamp(offset[1]*scale,.30);
+  const z=clamp(offset[2]*scale,.50);
   // Lean is a bounded position offset, not velocity: holding still never drifts.
-  return [x*c+z*s,y,-x*s+z*c];
+  return [x,y,z];
 }
 
 export class ViewPose {
