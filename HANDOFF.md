@@ -645,19 +645,21 @@ the bind joints, so the bind pose maps to identity and Blender's bone rolls are 
 the SkinnedMesh with `matrixAutoUpdate = false`; the mesh is bound with an identity bind matrix, so the skin lands on
 the points in the hand group's space (the mirror view's `scale.x = -1` still applies). The GLB's material is cloned for
 each mesh (colour, roughness, normal map).
-- **Crooked / fat fingers, deformed nails** (the owner's complaints, twice): stretching the skin to the raw tracked
-  joint positions copies every proportion error and per-joint jitter of the tracker into the mesh (a finger the tracker
-  makes 15 % short gets squashed and looks fat; a PIP 4 mm sideways zigzags the finger; a short tip bone crushes the
-  nail). So the skin is now driven like a rigged character - **`poseFK` (default, HUD says `mesh rigged`)**: the scan
-  keeps its OWN bone lengths, scaled once by the tracked palm length; the tracker supplies only directions. Per finger
-  the chain MCP->PIP->DIP->tip is rebuilt in the finger's bending plane (sideways components removed) with a
-  hyperextension clamp (`HYPER` 25/8/8 degrees backward at MCP/PIP/DIP); palm bones and thumb take the tracked
-  directions as they are; the result is translated so its palm centre sits on the tracked palm centre. The skin
-  therefore deviates from the green lines by the tracker's proportion error (fingertips a few mm); the lines, the
-  colliders, the metrics and the move detection still use the exact tracked points. `?fit=exact` restores the previous
-  exact-geometry drive (`meshPts`: tracked positions with only the sideways PIP/DIP noise projected out), HUD `mesh exact`.
-  This is the one place the "never canonical" rule is bent, on the owner's later instruction that the fingers must not
-  look crooked.
+- **Crooked / fat fingers, deformed nails** (the owner's complaints): stretching each bone to its tracked length while
+  keeping the scan's thickness made a finger the tracker measures 15 % short 15 % fatter and crushed the nail; PIP/DIP
+  sideways jitter zigzagged it. A rotation-only "rigged" drive was tried (`poseFK`: scan bone lengths, tracker directions,
+  planar chains, hyperextension clamp) and looked clean but put the skin's fingertips off the green lines - the owner
+  rejected that at once ("the tracking lines on the model should be exactly as in the image"). **Default now = exact
+  positions with a shape fit**: every skin joint sits on the tracked point (`meshPts` only projects out the sideways
+  PIP/DIP noise, a few mm), and each chain's THICKNESS (palm, thumb, each finger) is scaled by that chain's own
+  tracked-to-scan length ratio, smoothed with an EMA (0.08/frame) so it cannot flicker. That is what MANO-style
+  fitting does with its shape parameters: fit proportions, keep joints on the keypoints. HUD `mesh exact`;
+  `?fit=rigged` gives the rotation-only drive for comparison. The green lines, colliders, metrics and move detection use
+  the raw tracked points. Research note for "make the mesh follow the fingers exactly": with a fixed-shape mesh, exact
+  keypoint following is only possible by per-bone stretch (this) or by per-frame IK that lands the joints on the points
+  (same thing expressed as rotations + per-bone scale); MANO/HandTailor fit shape once and pose per frame, and still
+  report ~5 mm keypoint residuals. The remaining visible crookedness is the tracker's own in-plane jitter of PIP/DIP;
+  a temporal filter on those two joints only (not the tips) is the next lever if the owner wants stiller fingers.
 - **Handedness** from the geometry, not from MediaPipe's flickering label: sign of (tip 4 - wrist) . ((5-0) x (17-0))
   is + for a right hand; smoothed per slot. The other hand is the GLB mirrored in x with reversed winding and its own
   bind inverses (`mirroredIsLeft` = the GLB is a right hand; for this scan it is false, so a tracked RIGHT hand gets the
