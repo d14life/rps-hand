@@ -1,11 +1,12 @@
-import { ViewPose, WindowPose, windowFrustum } from './pose.mjs?v=window2';
+import { ViewPose, WindowPose, windowFrustum, firstPersonOrigin } from './pose.mjs?v=person3';
 
 export class HeadView {
   constructor(video, camera, { mode, recenter, status, hfov = Math.PI/3 }) {
     this.video = video; this.camera = camera; this.status = status;
     this.pose = new ViewPose(); this.window = new WindowPose(); this.mode = mode.value; this.hfov = hfov; this.busy = false; this.ready = false; this.failed = false;
+    this.pose.mode = this.mode;
     this.lastCapture = -Infinity; this.lastVideo = -1;
-    this.worker = new Worker(new URL('./worker.mjs?v=window2', import.meta.url), { type: 'module' });
+    this.worker = new Worker(new URL('./worker.mjs?v=person3', import.meta.url), { type: 'module' });
     const fail = () => { this.failed = true; this.busy = false; this.worker.terminate(); clearTimeout(this.timer); };
     this.worker.onerror = fail;
     this.worker.onmessage = ({ data }) => {
@@ -30,7 +31,9 @@ export class HeadView {
   update(now, dt) {
     this.capture(now);
     const { yaw, pitch } = this.pose.update(now, dt);
-    const eye = this.window.update(now, dt, this.mode === 'window');
+    const eye = [...this.window.update(now, dt, this.mode === 'window' || this.mode === 'first')];
+    this.origin=firstPersonOrigin(this.window.neutral,this.video.videoWidth/this.video.videoHeight,this.hfov);
+    if (this.mode === 'first') { const scale=this.origin[2]/.45; for(let i=0;i<3;i++) eye[i]*=scale; }
     this.camera.position.set(...eye);
     this.camera.rotation.set(this.mode === 'window' ? 0 : pitch, this.mode === 'window' ? 0 : yaw, 0, 'YXZ');
     this.camera.updateProjectionMatrix();
@@ -39,6 +42,6 @@ export class HeadView {
       this.camera.projectionMatrix.makePerspective(f.left,f.right,f.top,f.bottom,this.camera.near,this.camera.far);
       this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
     }
-    this.status.textContent = this.mode === 'off' ? 'Fixed mirror view' : this.failed ? 'Head tracking unavailable — hand tracking still works' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face in view · look straight and Recenter' : this.mode === 'window' ? '3D window · lean sideways, up/down, closer or farther' : this.mode === 'eyes' ? 'Head + eyes · approximate gaze' : 'Head tracking on · turn gently to look around';
+    this.status.textContent = this.mode === 'off' ? 'Fixed mirror view' : this.failed ? 'Head tracking unavailable — hand tracking still works' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face in view · look straight and Recenter' : this.mode === 'first' ? 'Your eyes · turn to look, lean to move · hands in front' : this.mode === 'window' ? '3D window · lean sideways, up/down, closer or farther' : this.mode === 'eyes' ? 'Head + eyes · approximate gaze' : 'Head tracking on · turn gently to look around';
   }
 }

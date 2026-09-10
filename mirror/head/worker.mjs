@@ -1,5 +1,5 @@
 import { FilesetResolver, FaceLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
-import { facePose } from './pose.mjs?v=window2';
+import { facePose } from './pose.mjs?v=person3';
 
 let tracker;
 try {

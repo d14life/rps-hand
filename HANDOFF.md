@@ -28,7 +28,7 @@ The separate root `index.html` is the newer upstream application (build 9 when t
 
 Hosted mirror: https://sculpture-hand-motion.fy71209.chatgpt.site/mirror/
 
-The mirror now defaults to an immersive head-tracked 3D window (off-axis perspective), with Recenter, Fixed,
+The mirror now defaults to first-person tracked hands inside a room. The optional 3D window retains off-axis perspective. Both include Recenter, Fixed,
 and optional Head + eyes (beta). See `mirror/head/README.md` for mapping, smoothing,
 loss handling and limits. Use **Camera: fixed** when comparing model joints to
 video dots: head movement intentionally changes the projection, not the rig.

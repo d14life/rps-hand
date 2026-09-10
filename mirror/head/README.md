@@ -1,6 +1,26 @@
-# Head-tracked 3D window (default)
+# First-person tracked hands (default)
 
-The default is now a full-screen, head-coupled window into the scene. It tracks
+First person places the viewpoint on the user's side of the hands, inside a room.
+Both head rotation and translation drive the camera. The hand group uses a proper
+180-degree Y rotation (positive scale, not the old mirror reflection), then subtracts
+the neutral eye origin. This reveals the anatomical opposite side of a palm held
+toward the phone. Joint coordinates and skinning remain unchanged; hands are in
+world space, not parented to the moving camera. A table/floor supply depth cues.
+
+Neutral eye distance is estimated from a 90mm outer-eye span and camera FOV,
+bounded to 0.28–0.9m. The neutral eye midpoint determines the origin. Relative head
+translation scales the window tracker by that neutral distance, while yaw/pitch
+use 1.4 gain with limits of 0.8/0.55 radians so small turns can explore the room.
+Recenter resets both. This is approximate monocular tracking, not calibrated VR
+or whole-body locomotion. Keep the phone still and both face/hands visible.
+The first-person lens is 70 degrees vertically. A fixed 0.30m forward reach
+offset is applied to the hand group because the face and hand models estimate
+scale independently; it prevents typical close hands intersecting the near plane.
+This is a comfort mapping, not exact physical eye-to-hand registration.
+
+## Head-tracked 3D window (optional)
+
+The 3D window option provides a full-screen, head-coupled window into the scene. It tracks
 the midpoint of outer eye corners 33/263 and their 3D span to estimate lateral,
 vertical and distance changes relative to Recenter. Camera translation and an
 asymmetric perspective frustum keep the virtual screen plane at z=-0.35 fixed.

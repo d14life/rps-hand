@@ -58,6 +58,15 @@ export function windowFrustum(eye, fov, aspect, zoom, near, distance=.35) {
     top:(halfY-eye[1])*scale, bottom:(-halfY-eye[1])*scale };
 }
 
+// Approximate viewer eye origin in the first-person world. The phone observes
+// the user from the opposite side, so this is a proper 180-degree Y rotation.
+export function firstPersonOrigin(neutral, aspect, hfov) {
+  if (!neutral) return [0,.10,.60];
+  const k=2*Math.tan(hfov/2);
+  const depth=Math.max(.28,Math.min(.9,.09/(k*neutral.span)));
+  return [-k*(neutral.centerX-.5)*depth,-k*(neutral.centerY-.5)*depth/aspect,depth];
+}
+
 export class ViewPose {
   constructor() { this.mode = 'head'; this.neutral = null; this.latest = null; this.seen = -Infinity; this.yaw = 0; this.pitch = 0; }
   recenter() { this.neutral = null; this.latest = null; }
@@ -73,16 +82,17 @@ export class ViewPose {
     if (this.mode !== 'off' && this.latest && this.neutral && now - this.seen < 650) {
       // n points INTO the head (+z), opposite the viewing direction. With the
       // image mirrored, a positive plane yaw looks screen-right (negative camera yaw).
-      yaw = -(this.latest.yaw - this.neutral.yaw) * .65;
-      pitch = (this.latest.pitch - this.neutral.pitch) * .65;
+      const gain=this.mode==='first'?1.4:.65;
+      yaw = -(this.latest.yaw - this.neutral.yaw) * gain;
+      pitch = (this.latest.pitch - this.neutral.pitch) * gain;
       if (this.mode === 'eyes' && !this.latest.blink) {
         yaw -= (this.latest.eyeX - this.neutral.eyeX) * .12;
         pitch += (this.latest.eyeY - this.neutral.eyeY) * .12;
       }
     }
     const a = 1 - Math.exp(-Math.min(dt, .1) / .15);
-    this.yaw += (clamp(yaw, .24) - this.yaw) * a;
-    this.pitch += (clamp(pitch, .18) - this.pitch) * a;
+    this.yaw += (clamp(yaw, this.mode==='first'?.8:.24) - this.yaw) * a;
+    this.pitch += (clamp(pitch, this.mode==='first'?.55:.18) - this.pitch) * a;
     if (this.mode === 'off') this.yaw = this.pitch = 0;
     return { yaw: this.yaw, pitch: this.pitch };
   }

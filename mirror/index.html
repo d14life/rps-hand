@@ -51,9 +51,9 @@
     <canvas id="gl"></canvas>
     <div id="rig-status">Loading hand models...</div>
     <button id="joints">JOINTS: ON</button>
-    <div id="mirror-label">3D HAND WINDOW</div>
+    <div id="mirror-label">FIRST PERSON · YOUR HANDS</div>
     <div id="head-controls">
-      <select id="head-mode" aria-label="Camera movement"><option value="window">3D window (VR-like)</option><option value="head">Turn to look</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
+      <select id="head-mode" aria-label="Camera movement"><option value="first">First person</option><option value="window">3D window (VR-like)</option><option value="head">Turn to look</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
       <button id="recenter">Recenter</button>
       <button id="layout">Show camera</button>
       <div id="head-status" role="status">Look straight ahead to set the center</div>
@@ -69,7 +69,7 @@
 <script type="module">
 import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
-import { HeadView } from "./head/HeadView.js?v=window2";
+import { HeadView } from "./head/HeadView.js?v=person3";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
@@ -254,11 +254,13 @@ let zoom = 1.0;
 $("zoom").oninput = () => { zoom = +$("zoom").value; applyView(true); };
 function applyView(force) {
   const w = canvas.clientWidth, h = canvas.clientHeight, pr = renderer.getPixelRatio();
-  if (!force && canvas.width === (w * pr | 0) && canvas.height === (h * pr | 0)) return;
+  const viewMode=$("head-mode").value;
+  if (!force && camera.userData.viewMode===viewMode && canvas.width === (w * pr | 0) && canvas.height === (h * pr | 0)) return;
+  camera.userData.viewMode=viewMode;
   renderer.setSize(w, h, false); camera.aspect = w / h;
   const t = Math.tan(HFOV / 2);
   camera.position.set(0,0,0); camera.lookAt(0,0,-1); worldGroup.scale.x = -1;
-  camera.fov = 2*Math.atan(w/h < frameW/frameH ? t*frameH/frameW : t/(w/h))*180/Math.PI;
+  camera.fov = viewMode==='first'?70:2*Math.atan(w/h < frameW/frameH ? t*frameH/frameW : t/(w/h))*180/Math.PI;
   camera.zoom = zoom; camera.updateProjectionMatrix();
 }
 scene.background = new THREE.Color(0x242b31); scene.fog = null;
@@ -271,6 +273,16 @@ const room = new THREE.Group(); scene.add(room);
 const roomEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(.9,.65,1.2)),new THREE.LineBasicMaterial({color:0x678396,transparent:true,opacity:.5}));
 roomEdges.position.set(0,0,-.9); room.add(roomEdges);
 const floorGrid = new THREE.GridHelper(1.2,12,0x678396,0x394b59); floorGrid.position.set(0,-.325,-.9); room.add(floorGrid);
+const firstRoom = new THREE.Group(); scene.add(firstRoom);
+const roomShell=new THREE.Mesh(new THREE.BoxGeometry(6,3.5,7),new THREE.MeshStandardMaterial({color:0x344653,roughness:1,side:THREE.BackSide}));
+roomShell.position.set(0,.45,-1.5); firstRoom.add(roomShell);
+const ground=new THREE.GridHelper(6,24,0x9eacb7,0x526674); ground.position.set(0,-1.29,-1.5); firstRoom.add(ground);
+const table=new THREE.Mesh(new THREE.BoxGeometry(1.8,.06,.8),new THREE.MeshStandardMaterial({color:0x997c61,roughness:.85}));
+table.position.set(0,-.55,-1); firstRoom.add(table);
+for(const x of [-.8,.8]) for(const z of [-.7,-1.3]) {
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(.05,.72,.05),new THREE.MeshStandardMaterial({color:0x1c2730,roughness:.6}));
+  leg.position.set(x,-.94,z); firstRoom.add(leg);
+}
 // --- 3D replica of one hand + its physics colliders ------------------------------------------------
 let jointOverlay = true;
 const replicas = [];
@@ -331,7 +343,7 @@ async function main() {
     catch { $("head-status").textContent = "Head tracking unavailable — hand tracking still works"; }
   } else {
     $("head-status").textContent = "Choose Live camera for head tracking";
-    $("head-mode").disabled = $("recenter").disabled = true;
+    $("recenter").disabled = true;
   }
 
   // one slot per hand, keyed by MediaPipe's handedness label
@@ -395,7 +407,19 @@ async function main() {
     }
     $("rig-status").textContent = hud.length ? "" : "Hold your hand in front of the camera";
     $("hand").textContent = "HANDS: " + (hud.join("  |  ") || "-");
-    applyView(false); headView?.update(now, dt); room.visible=$("head-mode").value==='window'; renderer.render(scene, camera);
+    applyView(false); headView?.update(now, dt);
+    const viewMode=$("head-mode").value, first=viewMode==='first';
+    room.visible=viewMode==='window'; firstRoom.visible=first;
+    // Camera tracking and the hand detector share phone coordinates. A 180°
+    // rotation moves to the person's side of their hands (including dorsal view).
+    // Hands stay world-tracked: do not parent them to the camera or apply its yaw.
+    worldGroup.scale.x=first?1:-1; worldGroup.rotation.y=first?Math.PI:0;
+    const origin=first?(headView?.origin ?? [0,.10,.60]):[0,0,0];
+    // A small virtual reach offset keeps the independently estimated face/hand
+    // depth scales from putting the near clip plane through the fingers.
+    worldGroup.position.set(-origin[0],-origin[1],-origin[2]-(first?.30:0));
+    $("mirror-label").textContent=first?'FIRST PERSON · YOUR HANDS':viewMode==='window'?'3D HAND WINDOW':'HAND MIRROR';
+    renderer.render(scene, camera);
     requestAnimationFrame(loop);
   };
   loop();

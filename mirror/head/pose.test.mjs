@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { facePose, ViewPose, WindowPose, windowFrustum } from './pose.mjs';
+import { facePose, ViewPose, WindowPose, windowFrustum, firstPersonOrigin } from './pose.mjs';
 const mesh = (yaw=0, pitch=0, aspect=4/3) => {
   const p = Array.from({length:478}, () => ({x:.5,y:.5,z:0}));
   for (const [i,x,y] of [[234,-.15,0],[454,.15,0],[10,0,-.2],[152,0,.2]]) {
@@ -51,3 +51,12 @@ for(const e of [[0,0,0],[.15,-.1,.2],[-.15,.1,-.18]]) {
 }
 assert.deepEqual(w.update(2000,.1,false),[0,0,0]);
 console.log('PASS: 3-axis eye movement, recenter, fixed screen corners, depth parallax, off reset');
+const origin=firstPersonOrigin({centerX:.5,centerY:.5,span:.15},4/3,Math.PI/3);
+assert.ok(origin[2]>.4 && origin[2]<.6);
+// A hand between face and phone ends up ahead of the eye after R_y(pi).
+const rawHand=[.1,0,-.25], transformed=[-rawHand[0]-origin[0],rawHand[1]-origin[1],-rawHand[2]-origin[2]];
+assert.ok(transformed[0]<0 && transformed[2]<0);
+const fp=new ViewPose(); fp.mode='first'; fp.receive(neutral,0); fp.receive({...neutral,yaw:.5,pitch:.3},100);
+for(let i=0;i<40;i++) fp.update(100,.1);
+assert.ok(fp.yaw<-.6 && fp.yaw>=-.8 && fp.pitch>.4 && fp.pitch<=.55);
+console.log('PASS: first-person eye depth, hand coordinate conversion and combined look mode');
