@@ -6,7 +6,7 @@ Rock-paper-scissors with real hand tracking: the camera tracks every finger join
 
 | Version | Who | Live link | What it is |
 |---|---|---|---|
-| **Hand** (build 33) | Claude | https://d14life.github.io/rps-hand/ | The tracked 3D hand (owner's rigged arms model), first person + mirror view, solid-hand solver, and a pistol on a table you can pick up and shoot. Source: `docs/index.html`, `docs/gun.mjs`, `docs/arm_*.glb`. History: `HANDOFF.md`. |
+| **Hand** (build 34) | Claude | https://d14life.github.io/rps-hand/ | The tracked 3D hand (owner's rigged arms model), first person + mirror view, solid-hand solver, and a pistol on a table you can pick up and shoot. Source: `docs/index.html`, `docs/gun.mjs`, `docs/arm_*.glb`. History: `HANDOFF.md`. |
 | **Movement** (v60) | Codex | https://d14life.github.io/rps-hand/movement/?v=60 | Walking and turning in a 3D map with a camera thumb joystick and head look. Source: `docs/movement/`. History: `MOVEMENT_HANDOFF.md`, review notes in `CODEX_HAND_REVIEW.md`. |
 
 Both pages need a phone camera. The two are developed in the same repo but independently: Claude publishes hand builds
