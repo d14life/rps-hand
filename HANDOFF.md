@@ -719,6 +719,14 @@ interfere.
 - Thickness is one per-hand constant now (palm-length ratio settled with a 0.01 EMA): the owner saw fingers swell when
   the hand came close (the tracked lengths inflate near the camera).
 
+- **Solid hand** (owner: "fingers are objects, objects can't go through each other"): after depth smoothing, `palmClamp`
+  keeps every finger joint at least `PALM_MIN` 6 mm in front of the palm plane (wrist + knuckles; palm side = the thumb
+  tip's side) and treats joints of different fingers as spheres of `FINGER_R` 7.5 mm that may not overlap (3 relaxation
+  passes; the nearer one comes closer, the farther one goes further). All moves are along the joint's own view ray, so
+  the picture stays exact. `?pc=0` disables. Counted as `palmClamps` / `fingerClamps` in `window.dbg`.
+- Finger thickness is per chain again (a short finger is also a thin finger) but settled with a 0.01/frame EMA so it
+  cannot change with distance; the single-constant version made the extended fingers of a V look fat.
+
 ### 22.6 Repo additions
 `docs/hand.glb`, `docs/hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
 `web_compare.py` (real-vs-mesh sheet over 22 hand positions), `angles_probe.py` (3D vs picture finger bends),
