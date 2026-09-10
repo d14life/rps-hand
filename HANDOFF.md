@@ -821,3 +821,30 @@ move him forward/back or turn reliably. Next: rebuild navigation on this base wi
   when folded and erased the bend). After: V with folded ring/pinky, compact fist with thumb across, crossed fingers cross,
   open hand (`sheet_plain2.png`). Codex owns `docs/movement/` (index-finger movement prototype) and left review notes in
   `CODEX_HAND_REVIEW.md` / `CLAUDE_CORRECTION_PROMPT.md` at the repo root; the checkout is shared with it.
+
+## 27. Builds 25-32: single flexion axis, knuckle spread, one hand, solid hand, first-person footprint (2026-09-10, night)
+- **Build 25-26**: one signed flexion axis per finger fixed at the knuckle (PIP/DIP curls were clamped after a 90 deg
+  knuckle bend); fist prior `FIST {mcp 85, pip 100, dip 60}` blended by tip-to-knuckle closeness (`?fist=a,b,c`).
+- **Build 30**: tracker input back to 480 px (384 was unmeasured and cost accuracy: gesture67 reproj 1.27 -> 0.96 %);
+  `?bench=1`, `?bigpad=1`, `?env=0`, `?delegate=CPU`.
+- **Build 31**: `NHANDS` default 1 (`?hands=2`): the owner's phone went from 104-137 ms to 16 ms / 53 fps per frame with
+  one hand; knuckles keep their sideways (spread) component +-40 deg so crossed fingers cross.
+- **Build 32** (this): `solidHand` position-based solver ON by default (`?col=0` off): finger segments are capsules
+  (`FINGER_RAD` 7.5 mm), the palm a slab (`PALM_HALF` 11 mm, spanning the knuckles across the palm so an abducted thumb is
+  not lifted), bone lengths kept, 4 passes. Side-by-side fingers push apart sideways; a pair whose across-palm order at the
+  contact is SWAPPED (a real crossing, thumb over the fingers) separates along the ray from the phone instead: the picture
+  fixes where each finger is, the tracker's depth is the uncertain part, so one goes in front of the other (tracked depth
+  order when clear, else remembered, else the later chain in front). Fold prior: a fingertip over the palm (5-95 % along,
+  within the knuckle span, under 0.6 palm lengths in front) is a folded finger -> the fist angles take over (the tracker
+  read closed fists as loose hooks 4-5 cm off the palm on victory/peace; measured with `probe_fk.py`). Hands only: the
+  skin is cut 8 cm down the forearm (`cutArm`, `?stub=`) and capped, forearm bones driven straight (the old collapse left
+  a blob + spike behind the wrist, visible from the side and in first person). **First person** (owner: "the 3D hand takes
+  too much of the screen, it should copy the same amount and space as the user's hand on the camera"): each hand is drawn
+  with its own camera = the phone's view REFLECTED through the hand's depth plane (`handCam`, `render3D`), same crop fov as
+  the video pane, so the palm lands within a few px of where the video shows it (`probe_fp.py`); the room uses the same
+  reflected view at a fixed `FP_DEPTH` 0.3 m (`?fpz=`), so a hand at that depth and a table object agree on screen. A
+  Color background forces a clear per `renderer.render` in three.js: `scene.background` is nulled for the hand passes.
+  `?view=0|1` picks the view for stills. Tools: `probe_fk.py` (tracked vs FK lengths/bends/tip heights), `probe_fp.py`
+  (first-person footprint vs video landmarks), `probe_chir.py`. The workflow `hand-pose-verify` (8 pose judges) found:
+  crossed1 fingers interpenetrating, loose fists, raised_fist thumb gap, woman_open depth-flipped (open flat hand: the
+  thumb-side chirality sign is ambiguous, still open).
