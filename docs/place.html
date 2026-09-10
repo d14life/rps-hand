@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Place hand joints</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1116; color: #fff; font: 14px/1.3 system-ui, sans-serif; overflow: hidden; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #panel { position: absolute; left: 0; top: 0; bottom: 0; width: 170px; overflow-y: auto; background: rgba(15,17,22,.85); padding: 8px; box-sizing: border-box; }
+  .j { padding: 5px 6px; margin: 2px 0; border-radius: 6px; background: #1d2230; cursor: pointer; display: flex; justify-content: space-between; }
+  .j.sel { background: #2f6fed; } .j.done { border-left: 4px solid #78ff78; }
+  #tools { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 9px 12px; background: #2a3145; color: #fff; }
+  #out { position: absolute; right: 8px; bottom: 8px; left: 180px; height: 70px; font: 11px monospace; background: #1d2230; color: #ddd; border: 0; }
+  #hint { position: absolute; left: 180px; top: 8px; right: 130px; font-size: 13px; text-shadow: 0 0 4px #000; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="panel"></div>
+<div id="hint">Tap a joint in the list, then tap that spot on the hand. The joint goes to the middle of the finger there. Drag to orbit, pinch/wheel to zoom.</div>
+<div id="tools">
+  <button id="vBack">view: back</button><button id="vPalm">view: palm</button><button id="vSide">view: side</button>
+  <button id="undo">undo</button><button id="reset">reload saved</button><button id="copy">copy JSON</button><a id="dl" download="hand.json"><button>download</button></a>
+</div>
+<textarea id="out" readonly></textarea>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js" } }</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/controls/OrbitControls.js";
+const Q = new URLSearchParams(location.search), GLB = Q.get("skin") || "hand.glb", JSONF = GLB.replace(/\.glb$/, ".json");
+const NAMES = ["0 wrist", "1 thumb base (CMC)", "2 thumb knuckle (MCP)", "3 thumb joint (IP)", "4 thumb tip", "5 index knuckle", "6 index PIP", "7 index DIP", "8 index tip",
+  "9 middle knuckle", "10 middle PIP", "11 middle DIP", "12 middle tip", "13 ring knuckle", "14 ring PIP", "15 ring DIP", "16 ring tip", "17 pinky knuckle", "18 pinky PIP", "19 pinky DIP", "20 pinky tip"];
+const PARENT = {1:0,2:1,3:2,4:3,5:0,6:5,7:6,8:7,9:0,10:9,11:10,12:11,13:0,14:13,15:14,16:15,17:0,18:17,19:18,20:19};
+const $ = id => document.getElementById(id);
+const renderer = new THREE.WebGLRenderer({ canvas: $("gl"), antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1f2b);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x334, 1.2)); const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(1, 2, 3); scene.add(key);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 5000); const controls = new OrbitControls(camera, renderer.domElement);
+let mesh, meta, joints = [], history = [], sel = 5, centre = new THREE.Vector3(), size = 60;
+const spheres = [], lines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x78ff78, depthTest: false }));
+lines.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(20 * 6), 3)); lines.renderOrder = 2; scene.add(lines);
+for (let i = 0; i < 21; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xff4040, depthTest: false })); s.renderOrder = 3; scene.add(s); spheres.push(s); }
+const gltf = await new GLTFLoader().loadAsync(GLB); gltf.scene.traverse(o => { if (o.isMesh || o.isSkinnedMesh) mesh = o; });
+const geo = mesh.geometry; const plain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xd9b8a0, roughness: 0.7, normalMap: mesh.material?.normalMap || null }));
+scene.add(plain); geo.computeBoundingBox(); geo.boundingBox.getCenter(centre); size = geo.boundingBox.getSize(new THREE.Vector3()).length();
+try { meta = await (await fetch(JSONF)).json(); } catch (e) { meta = null; }
+const saved = meta ? meta.joints.map(p => new THREE.Vector3(...p)) : Array.from({ length: 21 }, () => centre.clone());
+joints = saved.map(p => p.clone());
+// principal axes for the view buttons (thickness = smallest spread)
+const pos = geo.attributes.position; const n = pos.count; const m = [0, 0, 0]; for (let i = 0; i < n; i++) { m[0] += pos.getX(i) / n; m[1] += pos.getY(i) / n; m[2] += pos.getZ(i) / n; }
+const C = [[0,0,0],[0,0,0],[0,0,0]]; for (let i = 0; i < n; i++) { const d = [pos.getX(i) - m[0], pos.getY(i) - m[1], pos.getZ(i) - m[2]]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a][b] += d[a] * d[b] / n; }
+function powerIter(M, iters = 60) { let v = [1, 0.3, 0.2]; for (let k = 0; k < iters; k++) { const w = [0, 1, 2].map(a => M[a][0] * v[0] + M[a][1] * v[1] + M[a][2] * v[2]); const l = Math.hypot(...w); v = w.map(x => x / l); } return v; }
+const e0 = powerIter(C); const proj = (M, v) => { const l = M[0][0] * 0 + 0; const out = M.map(r => r.slice()); const lam = (M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2]) / v[0]; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out[a][b] -= lam * v[a] * v[b]; return out; };
+const e1 = powerIter(proj(C, e0)); const e2 = [e0[1] * e1[2] - e0[2] * e1[1], e0[2] * e1[0] - e0[0] * e1[2], e0[0] * e1[1] - e0[1] * e1[0]];
+// palm side = the side the fingertips (saved joints 8,12,16,20) lie on relative to the knuckles, along e2
+const E2 = new THREE.Vector3(...e2), E0 = new THREE.Vector3(...e0);
+if (meta && saved[12].clone().sub(saved[0]).dot(E0) < 0) E0.negate();   // fingers up on screen
+let palmSign = 1; if (meta) { let s = 0; for (const [a, b] of [[5, 8], [9, 12], [13, 16], [17, 20]]) s += saved[b].clone().sub(saved[a]).dot(E2); palmSign = s < 0 ? -1 : 1; }
+function view(dir, up) { camera.position.copy(centre).addScaledVector(dir, size * 1.6); camera.up.copy(up); controls.target.copy(centre); camera.lookAt(centre); controls.update(); }
+$("vBack").onclick = () => view(E2.clone().multiplyScalar(-palmSign), E0); $("vPalm").onclick = () => view(E2.clone().multiplyScalar(palmSign), E0);
+$("vSide").onclick = () => view(new THREE.Vector3(...e1), E0);
+const panel = $("panel"); NAMES.forEach((nm, i) => { const d = document.createElement("div"); d.className = "j"; d.id = "j" + i; d.innerHTML = `<span>${nm}</span>`; d.onclick = () => { sel = i; refresh(); }; panel.appendChild(d); });
+function refresh() {
+  for (let i = 0; i < 21; i++) { const d = $("j" + i); d.classList.toggle("sel", i === sel); d.classList.toggle("done", joints[i].distanceTo(saved[i]) > 1e-6); }
+  spheres.forEach((s, i) => { s.position.copy(joints[i]); s.scale.setScalar(size * (i === sel ? 0.016 : 0.009)); s.material.color.set(i === sel ? 0x2f6fed : 0xff4040); });
+  const a = lines.geometry.attributes.position; let k = 0; for (const [j, p] of Object.entries(PARENT)) { for (const i of [+p, +j]) a.setXYZ(k++, joints[i].x, joints[i].y, joints[i].z); } a.needsUpdate = true;
+  const json = JSON.stringify({ joints: joints.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), +p.z.toFixed(3)]), hand: meta?.hand ?? "left", units: meta?.units ?? "obj", bones: Array.from({ length: 20 }, (_, i) => "b" + (i + 1)), placedBy: "place.html" });
+  $("out").value = json; $("dl").href = "data:application/json," + encodeURIComponent(json);
+}
+const ray = new THREE.Raycaster(); let down = null;
+renderer.domElement.addEventListener("pointerdown", e => { down = [e.clientX, e.clientY, performance.now()]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || performance.now() - down[2] > 400) return;   // a tap, not a drag
+  const r = renderer.domElement.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  const hits = ray.intersectObject(plain, false); if (!hits.length) return;
+  const A = hits[0].point, B = hits.length > 1 ? hits[1].point : A;   // entry and exit: the joint sits halfway through the finger
+  history.push(joints.map(p => p.clone())); joints[sel] = A.clone().add(B).multiplyScalar(0.5);
+  if (sel < 20) sel++; refresh();
+});
+$("undo").onclick = () => { if (history.length) { joints = history.pop(); refresh(); } };
+$("reset").onclick = () => { joints = saved.map(p => p.clone()); history = []; refresh(); };
+$("copy").onclick = () => navigator.clipboard?.writeText($("out").value);
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener("resize", resize); resize(); $("vBack").click(); refresh();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
