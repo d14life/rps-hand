@@ -669,6 +669,21 @@ each mesh (colour, roughness, normal map).
   (same thing expressed as rotations + per-bone scale); MANO/HandTailor fit shape once and pose per frame, and still
   report ~5 mm keypoint residuals. The remaining visible crookedness is the tracker's own in-plane jitter of PIP/DIP;
   a temporal filter on those two joints only (not the tips) is the next lever if the owner wants stiller fingers.
+- **Curled fingertips, "fat sausages up close, thin far away"** (the owner's next complaints, with "compare the model
+  against real hand pictures in 15-20 positions"): `web_compare.py` builds a sheet of the real hand next to the mesh
+  for 7 stills + 15 paused clip frames (`compare_*.png`; `?video=` frames are frozen with `dbg.freeze`, which makes the
+  pump re-track a paused frame). `angles_probe.py` prints per-finger PIP/DIP bends in 3D vs in the picture. Measured
+  cause: on straight fingers the PICTURE bend is 0-16 degrees but the 3D bend was 18-48, all from MediaPipe's per-joint
+  depth (1-4 cm steps between joints, and a distal segment longer than the middle one, which no finger has). The
+  inflated lengths also fed the thickness ratio, hence fat fingers when the hand is near the camera. Two fixes tried:
+  (a) solving each joint's depth from a per-hand bone length (2D keypoints + lengths -> 3D, `fitDepths`, `?len=fit`):
+  REJECTED - when a segment faces the camera the two depth roots are ill-conditioned and 3D bends got worse (dip 100+
+  degrees on straight fingers); (b) **`smoothFingerDepth` (default, `?zs=0` off)**: the four depths of a finger are
+  replaced by a least-squares line over the finger's picture arc length when the picture shows a straight finger
+  (total picture bend < 25 degrees), a parabola when it shows a curl; the thumb always gets the parabola. Picture
+  positions untouched. After: straight-finger 3D bends 1-11 degrees (= picture), segment lengths decreasing along the
+  finger (38/21/17 mm), open hands on the sheet straight with natural tips. Fists are still lumpy: that is linear blend
+  skinning of tightly folded, mostly occluded fingers, not tracking.
 - **Handedness** from the geometry, not from MediaPipe's flickering label: sign of (tip 4 - wrist) . ((5-0) x (17-0))
   is + for a right hand; smoothed per slot. The other hand is the GLB mirrored in x with reversed winding and its own
   bind inverses (`mirroredIsLeft` = the GLB is a right hand; for this scan it is false, so a tracked RIGHT hand gets the
@@ -692,7 +707,8 @@ interfere.
 
 ### 22.6 Repo additions
 `docs/hand.glb`, `docs/hand.json`, `web_shot.py` (one screenshot: `python web_shot.py "?img=victory.jpg" out.png [secs] [js]`),
-`baseline_b13*.txt` / `run_b14*.txt` (harness logs of this session). Query parameters added: `?skin=0`, `?cam=x,y,z,tx,ty,tz`, `?nav=x,z,yaw`.
+`web_compare.py` (real-vs-mesh sheet over 22 hand positions), `angles_probe.py` (3D vs picture finger bends),
+`baseline_b13*.txt` / `run_b14*.txt` (harness logs of this session). Query parameters added: `?skin=0|file.glb`, `?cam=x,y,z,tx,ty,tz`, `?nav=x,z,yaw`, `?fit=rigged`, `?zs=0`, `?len=fit`.
 
 ### 22.7 Open items after build 14
 1. Try it on the phone: mesh frame rate (2.3 MB GLB, 79 k triangles per hand), navigation gains/sign, whether the
