@@ -633,8 +633,17 @@ a realistic LEFT hand with a short wrist stump, fingers spread and slightly curl
    original (cage 1.2, ray 5.0, `use_clear=False` on a map pre-filled with the flat normal), 1024^2 PNG inside the GLB.
    Blender's own EEVEE check render still shows dark fingertip caps; the same GLB in three.js does not (`shot_h1_*.png`),
    so it was left as is - re-check on the phone.
-8. `docs/hand.glb` 4.6 MB (56 k vertices, 79 k triangles, material = colour 0.80/0.60/0.50, roughness 0.6, normal map),
+8. `docs/hand.glb` 2.3 MB (56 k vertices, 79 k triangles, material = colour 0.80/0.60/0.50, roughness 0.6, normal map),
    `docs/hand.json` (21 bind joints in glTF = OBJ coordinates, `hand`, bone names).
+9. Second pass by a parallel agent (scratchpad `weights.py`, `posetest.py`, `export_v2.py`, `repack.py`): the automatic
+   weights were replaced by a procedural linear-blend distribution - chain membership from the bone-heat weights
+   (top 2 chains), smoothstep hand-off at each joint with half-width 0.9/0.7/0.5 x local finger radius at MCP/PIP/DIP,
+   palm blended by inverse-cube distance to the metacarpals, max 4 influences, tip bones at 100 % on the fingertips so
+   nails stay flat. Verified by posing the flat bones exactly the way the page does (fist, stress, scissors, open, curl,
+   point; five orthogonal views each; `pt_w5_*_sheet.png`): fingers keep their shape, nails flat, no palm crumpling;
+   the deep inner crease at 90°+ and tip-into-palm intersection in a tight fist remain (linear blend skinning limits).
+   Export: WebP normal map (1024², 238 kB, PSNR 34.7 dB vs PNG) + KHR_mesh_quantization repack (int8 normals, u16 UVs,
+   u8 weights), joint order/bind matrices/positions byte-identical to the first export. Loads in three.js 0.186.
 
 ### 22.4 How the page drives it (`boneFrame`, `meshPts`, `makeSkin`)
 `hand.draw(pts)` is unchanged for callers. Per bone and per frame a 4x4 is built from the points: origin at the parent
@@ -686,7 +695,7 @@ interfere.
 `baseline_b13*.txt` / `run_b14*.txt` (harness logs of this session). Query parameters added: `?skin=0`, `?cam=x,y,z,tx,ty,tz`, `?nav=x,z,yaw`.
 
 ### 22.7 Open items after build 14
-1. Try it on the phone: mesh frame rate (4.6 MB GLB, 79 k triangles per hand), navigation gains/sign, whether the
+1. Try it on the phone: mesh frame rate (2.3 MB GLB, 79 k triangles per hand), navigation gains/sign, whether the
    wrist stump should be hidden or extended into a forearm.
 2. Skin quality: the GLB material is flat colour + normal map (the scan has no colour). Subsurface or a painted tint
    would help; WebP instead of PNG would halve the GLB.
