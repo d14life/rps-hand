@@ -1,0 +1,2 @@
+# Current review — 2026-09-10
+No new steering prompt recommended while Claude is actively correcting the bend axis and rendering validation. Latest plain-material fist and V renders (16:31–16:32) show folded fingers correctly curling; the earlier report that all fingers remain extended is superseded. Crossed-pose fingertips are cropped, so crossing is not yet visually verified. Still images do not establish constant volume during motion or phone latency. Recheck newer results before offering a correction.
