@@ -1,4 +1,4 @@
-import { ViewPose, WindowPose, windowFrustum, firstPersonOrigin } from './pose.mjs?v=headonly4';
+import { ViewPose, WindowPose, windowFrustum, firstPersonOrigin, gentleHeadTranslation } from './pose.mjs?v=lean5';
 
 export class HeadView {
   constructor(video, camera, { mode, recenter, status, sensitivity, hfov = Math.PI/3 }) {
@@ -33,9 +33,9 @@ export class HeadView {
     this.capture(now);
     this.pose.sensitivity=Number(this.sensitivity.value);
     const { yaw, pitch } = this.pose.update(now, dt);
-    const eye = [...this.window.update(now, dt, this.mode === 'window' || this.mode === 'first')];
+    let eye = [...this.window.update(now, dt, this.mode === 'window' || this.mode === 'first')];
     this.origin=firstPersonOrigin(this.window.neutral,this.video.videoWidth/this.video.videoHeight,this.hfov);
-    if (this.mode === 'first') { const scale=this.origin[2]/.45; for(let i=0;i<3;i++) eye[i]*=scale; }
+    if (this.mode === 'first') eye=gentleHeadTranslation(eye,this.origin[2],yaw);
     this.camera.position.set(...eye);
     this.camera.rotation.set(this.mode === 'window' ? 0 : pitch, this.mode === 'window' ? 0 : yaw, 0, 'YXZ');
     this.camera.updateProjectionMatrix();
@@ -44,6 +44,6 @@ export class HeadView {
       this.camera.projectionMatrix.makePerspective(f.left,f.right,f.top,f.bottom,this.camera.near,this.camera.far);
       this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
     }
-    this.status.textContent = this.mode === 'off' ? 'Fixed mirror view' : this.failed ? 'Head tracking unavailable — hand tracking still works' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face in view · look straight and Recenter' : this.mode === 'first' ? 'Head only · small turns look farther · Recenter to face forward' : this.mode === 'window' ? '3D window · lean sideways, up/down, closer or farther' : 'Head tracking on · turn gently to look around';
+    this.status.textContent = this.mode === 'off' ? 'View paused' : this.failed ? 'Head tracking unavailable — reload to try again' : !this.ready ? 'Loading head tracking…' : now-this.pose.seen > 650 ? 'Keep your face in view · look straight and Recenter' : 'Turn to look · lean closer to move forward · lean back to move backward';
   }
 }

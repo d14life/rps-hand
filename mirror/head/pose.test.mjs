@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { facePose, ViewPose, WindowPose, windowFrustum, firstPersonOrigin } from './pose.mjs';
+import { facePose, ViewPose, WindowPose, windowFrustum, firstPersonOrigin, gentleHeadTranslation } from './pose.mjs';
 const mesh = (yaw=0, pitch=0, aspect=4/3) => {
   const p = Array.from({length:478}, () => ({x:.5,y:.5,z:0}));
   for (const [i,x,y] of [[234,-.15,0],[454,.15,0],[10,0,-.2],[152,0,.2]]) {
@@ -69,3 +69,11 @@ quiet.receive({...neutral,yaw:.01,pitch:.01,eyeX:1,eyeY:1},100);
 assert.deepEqual(quiet.update(100,.1),{yaw:0,pitch:0});
 assert.ok(!('eyeX' in facePose(mesh())) && !('blink' in facePose(mesh())));
 console.log('PASS: screen-friendly turn gain, rear view, physical avatar angle, dead zone and no gaze input');
+const forward=gentleHeadTranslation([0,0,-.1],.45,0);
+const backward=gentleHeadTranslation([0,0,.1],.45,0);
+assert.ok(Math.abs(forward[2]+.065)<1e-8 && Math.abs(backward[2]-.065)<1e-8);
+assert.deepEqual(gentleHeadTranslation([0,0,0],.45,0),[0,0,0]);
+const turned=gentleHeadTranslation([0,0,-.1],.45,-Math.PI/2);
+assert.ok(turned[0]>0 && Math.abs(turned[2])<1e-8);
+assert.ok(Math.abs(gentleHeadTranslation([0,0,-10],.9,0)[2])<=.15);
+console.log('PASS: gentle forward/backward lean, return to neutral, facing direction, bounded travel');

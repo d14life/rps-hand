@@ -1,3 +1,5 @@
+CURRENT: mirror/index.html is now HEAD-ONLY at the user's request: no hand detector, hand renderer, or grabbing UI. It retains amplified head turns and gentle bounded forward/backward leaning. The earlier complete hand interaction page is available in commit a831b7f; hand assets and modules remain for reuse. See mirror/head/README.md for current behaviour.
+
 # Hand tracking mesh: start here
 
 This branch contains the complete mirror prototype, its current assets, editable Blender files, and the method used to drive a replacement hand mesh from the existing detector.

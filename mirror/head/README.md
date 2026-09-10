@@ -25,13 +25,9 @@ at 85ms. After 650ms face loss the view eases home; 1.5s loss recalibrates on re
 Prop the phone still, keep the face in frame, look forward, then press Recenter.
 This is approximate webcam tracking, not stereo VR or full-body locomotion.
 
-Hands use a proper 180-degree Y rotation to show the person's side, then subtract
-the neutral head origin and add a fixed 0.30m forward comfort offset to accommodate
-independent face/hand depth estimates. They stay world-tracked, not camera-parented.
-The head model is hidden from its own camera; its collapsible preview remains.
+The current page contains no hand renderer, hand detector or object manipulation. Older assets and interaction tests remain available as source history, but the page does not import or run them.
 
-Optional 3D window mode uses translation and an off-axis projection anchored at
-z=-0.35, without camera rotation. Fixed restores the original mirror projection.
+Lean translation uses 65% of estimated physical motion, with forward/back travel capped at 0.15m, sideways at 0.12m and vertical at 0.10m. Forward motion follows horizontal viewing direction. It is an absolute offset from Recenter, never a velocity: remaining still does not drift.
 
 The face CPU module worker shares the existing video stream, captures at most
 10fps and 480px width, with one frame in flight. Errors disable only face tracking.

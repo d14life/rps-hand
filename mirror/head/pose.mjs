@@ -61,6 +61,14 @@ export function firstPersonOrigin(neutral, aspect, hfov) {
   return [-k*(neutral.centerX-.5)*depth,-k*(neutral.centerY-.5)*depth/aspect,depth];
 }
 
+export function gentleHeadTranslation(offset, depth, yaw) {
+  const scale=.65*depth/.45;
+  const x=clamp(offset[0]*scale,.12), y=clamp(offset[1]*scale,.10);
+  const z=clamp(offset[2]*scale,.15), c=Math.cos(yaw), s=Math.sin(yaw);
+  // Lean is a bounded position offset, not velocity: holding still never drifts.
+  return [x*c+z*s,y,-x*s+z*c];
+}
+
 export class ViewPose {
   constructor() { this.mode = 'head'; this.sensitivity=5; this.physicalYaw=0; this.physicalPitch=0; this.neutral = null; this.latest = null; this.seen = -Infinity; this.yaw = 0; this.pitch = 0; }
   recenter() { this.neutral = null; this.latest = null; }
