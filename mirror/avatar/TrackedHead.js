@@ -26,8 +26,7 @@ export class TrackedHead {
     this.object.position.copy(camera.position); this.object.quaternion.copy(camera.quaternion);
     const tracking=headView && now-headView.pose.seen<650;
     // Preview is a mirror of the user's pose, without the navigation gain.
-    const gain=headView?.mode==='first'?1.4:.65;
-    this.turn.rotation.set(-(headView?.pose.pitch??0)/gain,-(headView?.pose.yaw??0)/gain,0,'YXZ');
+    this.turn.rotation.set(-(headView?.pose.physicalPitch??0),-(headView?.pose.physicalYaw??0),0,'YXZ');
     if(this.loaded) this.label.textContent=tracking?'Your head · tracking':'Your head · preview';
     if(this.canvas.clientHeight && !document.hidden) this.renderer.render(this.preview,this.camera);
   }

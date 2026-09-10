@@ -56,10 +56,10 @@
     <button id="joints">JOINTS: ON</button>
     <div id="mirror-label">FIRST PERSON · YOUR HANDS</div>
     <div id="head-controls">
-      <select id="head-mode" aria-label="Camera movement"><option value="first">First person</option><option value="window">3D window (VR-like)</option><option value="head">Turn to look</option><option value="eyes">Head + eyes (beta)</option><option value="off">Camera: fixed</option></select>
+      <select id="head-mode" aria-label="Camera movement"><option value="first">First person</option><option value="window">3D window (VR-like)</option><option value="off">Camera: fixed</option></select>
       <button id="recenter">Recenter</button>
       <button id="layout">Show camera</button>
-      <div id="head-status" role="status">Look straight ahead to set the center</div>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px">Head turn <input id="head-sensitivity" aria-label="Head turn sensitivity" type="range" min="3" max="8" step="0.5" value="5" style="width:90px"><output id="head-gain">5×</output></label><div id="head-status" role="status">Look straight ahead to set the center</div>
     </div>
     <label id="zoom-label">Zoom <input id="zoom" aria-label="Mirror zoom" type="range" min="1" max="2" step="0.05" value="1"></label>
     <button id="mode">MODE: predict</button>
@@ -73,12 +73,13 @@
 <script type="module">
 import * as THREE from "three";
 import { TrackedHand } from "./hand/TrackedHand.js?v=fold-2";
-import { HeadView } from "./head/HeadView.js?v=person3";
-import { TrackedHead } from "./avatar/TrackedHead.js?v=1";
+import { HeadView } from "./head/HeadView.js?v=headonly4";
+import { TrackedHead } from "./avatar/TrackedHead.js?v=headonly4";
 
 const BUILD = 7;   // shown in the HUD so a cached page is obvious (GitHub Pages caches for 10 min)
 const $ = id => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
+$("head-sensitivity").oninput=()=>$("head-gain").textContent=$("head-sensitivity").value+"×";
 $("layout").onclick = () => { const immersive=document.body.classList.toggle('immersive'); $("layout").textContent=immersive?'Show camera':'Immersive view'; applyView(true); };
 $("sample").value = Q.get("img") || "";
 $("sample").onchange = () => { const q = new URLSearchParams(location.search); if ($("sample").value) q.set("img", $("sample").value); else q.delete("img"); location.search = q.toString(); };
@@ -268,7 +269,7 @@ function applyView(force) {
   renderer.setSize(w, h, false); camera.aspect = w / h;
   const t = Math.tan(HFOV / 2);
   camera.position.set(0,0,0); camera.lookAt(0,0,-1); worldGroup.scale.x = -1;
-  camera.fov = viewMode==='first'?70:2*Math.atan(w/h < frameW/frameH ? t*frameH/frameW : t/(w/h))*180/Math.PI;
+  camera.fov = viewMode==='first'?2*Math.atan(Math.tan(50*Math.PI/180)/Math.max(1,w/h))*180/Math.PI:2*Math.atan(w/h < frameW/frameH ? t*frameH/frameW : t/(w/h))*180/Math.PI;
   camera.zoom = zoom; camera.updateProjectionMatrix();
 }
 scene.background = new THREE.Color(0x242b31); scene.fog = null;
@@ -347,7 +348,7 @@ async function main() {
   $("status").remove();
   let headView = null;
   if (!imgSrc) {
-    try { headView = new HeadView(video, camera, { mode: $("head-mode"), recenter: $("recenter"), status: $("head-status"), hfov: HFOV }); }
+    try { headView = new HeadView(video, camera, { mode: $("head-mode"), recenter: $("recenter"), status: $("head-status"), sensitivity: $("head-sensitivity"), hfov: HFOV }); }
     catch { $("head-status").textContent = "Head tracking unavailable — hand tracking still works"; }
   } else {
     $("head-status").textContent = "Choose Live camera for head tracking";

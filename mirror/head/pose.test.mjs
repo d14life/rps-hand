@@ -9,7 +9,7 @@ const mesh = (yaw=0, pitch=0, aspect=4/3) => {
   return p;
 };
 for (const aspect of [4/3, 3/4, 16/9]) {
-  const p=facePose(mesh(.3,0,aspect),[],aspect);
+  const p=facePose(mesh(.3,0,aspect),aspect);
   assert.ok(Math.abs(p.yaw-.3)<1e-8); assert.ok(Math.abs(p.pitch)<1e-8);
 }
 assert.equal(facePose([]),null);
@@ -26,12 +26,7 @@ for(let i=0;i<40;i++) v.update(2000,.1);
 assert.ok(Math.abs(v.yaw)<1e-8 && Math.abs(v.pitch)<1e-8);
 v.receive({...neutral,yaw:.6},2200); assert.equal(v.neutral.yaw,.6);
 v.mode='off'; assert.deepEqual(v.update(2200,.1),{yaw:0,pitch:0});
-v.mode='eyes'; v.recenter(); v.receive(neutral,2300);
-v.receive({...neutral,eyeX:1,eyeY:1},2400); assert.ok(v.update(2400,.1).yaw<0); assert.ok(v.pitch>0);
-v.receive({...neutral,eyeX:1,eyeY:1,blink:true},2500);
-for(let i=0;i<40;i++) v.update(2500,.1);
-assert.ok(Math.abs(v.yaw)<1e-8);
-console.log('PASS: orientation, aspect, recenter, limits, dropout, fixed mode, eyes and blinks');
+console.log('PASS: orientation, aspect, recenter, limits, dropout and fixed mode');
 const w=new WindowPose(), base={centerX:.5,centerY:.5,span:.2};
 w.receive(base,0,4/3,Math.PI/3);
 w.receive({...base,centerX:.6,centerY:.6,span:.25},100,4/3,Math.PI/3);
@@ -58,5 +53,19 @@ const rawHand=[.1,0,-.25], transformed=[-rawHand[0]-origin[0],rawHand[1]-origin[
 assert.ok(transformed[0]<0 && transformed[2]<0);
 const fp=new ViewPose(); fp.mode='first'; fp.receive(neutral,0); fp.receive({...neutral,yaw:.5,pitch:.3},100);
 for(let i=0;i<40;i++) fp.update(100,.1);
-assert.ok(fp.yaw<-.6 && fp.yaw>=-.8 && fp.pitch>.4 && fp.pitch<=.55);
+assert.ok(fp.yaw < -2.3 && fp.yaw >= -Math.PI && fp.pitch > .8 && fp.pitch <= 1.3);
 console.log('PASS: first-person eye depth, hand coordinate conversion and combined look mode');
+
+for(const degrees of [20,38,60]) {
+  const look=new ViewPose(); look.mode='first'; look.receive(neutral,0);
+  look.receive({...neutral,yaw:degrees*Math.PI/180},100);
+  for(let i=0;i<40;i++) look.update(100,.1);
+  const expected=Math.min(Math.PI,(degrees*Math.PI/180-.025)*5);
+  assert.ok(Math.abs(look.yaw+expected)<1e-8);
+  assert.ok(Math.abs(look.physicalYaw+degrees*Math.PI/180)<1e-8);
+}
+const quiet=new ViewPose();quiet.mode='first';quiet.receive(neutral,0);
+quiet.receive({...neutral,yaw:.01,pitch:.01,eyeX:1,eyeY:1},100);
+assert.deepEqual(quiet.update(100,.1),{yaw:0,pitch:0});
+assert.ok(!('eyeX' in facePose(mesh())) && !('blink' in facePose(mesh())));
+console.log('PASS: screen-friendly turn gain, rear view, physical avatar angle, dead zone and no gaze input');

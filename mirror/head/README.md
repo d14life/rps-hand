@@ -1,73 +1,44 @@
-# First-person tracked hands (default)
+# Head-only first-person viewing on a flat screen
 
-First person places the viewpoint on the user's side of the hands, inside a room.
-Both head rotation and translation drive the camera. The hand group uses a proper
-180-degree Y rotation (positive scale, not the old mirror reflection), then subtracts
-the neutral eye origin. This reveals the anatomical opposite side of a palm held
-toward the phone. Joint coordinates and skinning remain unchanged; hands are in
-world space, not parented to the moving camera. A table/floor supply depth cues.
+No gaze, iris, blink or expression output drives this app. FaceLandmarker runs
+with outputFaceBlendshapes:false. Cheeks 234/454 and forehead/chin 10/152 define
+head orientation; fixed outer eye corners 33/263 estimate head centre and scale
+(anatomical reference points, not eye direction). Roll is ignored.
 
-Neutral eye distance is estimated from a 90mm outer-eye span and camera FOV,
-bounded to 0.28–0.9m. The neutral eye midpoint determines the origin. Relative head
-translation scales the window tracker by that neutral distance, while yaw/pitch
-use 1.4 gain with limits of 0.8/0.55 radians so small turns can explore the room.
-Recenter resets both. This is approximate monocular tracking, not calibrated VR
-or whole-body locomotion. Keep the phone still and both face/hands visible.
-The first-person lens is 70 degrees vertically. A fixed 0.30m forward reach
-offset is applied to the hand group because the face and hand models estimate
-scale independently; it prevents typical close hands intersecting the near plane.
-This is a comfort mapping, not exact physical eye-to-hand registration.
+First person uses absolute head angle relative to Recenter. A 0.025-radian
+(1.43-degree) dead zone removes tiny movements, then yaw gain defaults to 5x,
+adjustable from 3x to 8x. Pitch gain is 60% of yaw gain. Limits are +/-180 degrees
+yaw and +/-74.5 degrees pitch. Roughly 20 degrees physical yaw gives 93 degrees
+virtual yaw; 38 degrees reaches the rear view at default gain. Returning the
+head to neutral returns the view forward. There is no continuous edge spinning.
+150ms exponential smoothing remains. The avatar preview uses separately smoothed
+physical angles, so its head does not turn five times as far as the person.
 
-## Head-tracked 3D window (optional)
+The virtual lens covers 100 degrees on the longer viewport dimension at 1x zoom.
+Landscape provides a 100-degree horizontal view; portrait caps vertical FOV at
+100 degrees to avoid extreme distortion. Virtual FOV is distinct from the capture
+lens HFOV used to reconstruct tracker positions. Higher zoom narrows FOV.
 
-The 3D window option provides a full-screen, head-coupled window into the scene. It tracks
-the midpoint of outer eye corners 33/263 and their 3D span to estimate lateral,
-vertical and distance changes relative to Recenter. Camera translation and an
-asymmetric perspective frustum keep the virtual screen plane at z=-0.35 fixed.
-There is no lookAt rotation in this mode. Background room/grid gives depth cues.
-Show camera restores the split view. Turn to look retains the earlier rotation mode.
+Head translation remains enabled. Neutral distance uses an assumed 90mm outer
+eye span and capture FOV, bounded to 0.28-0.9m. Relative translation is smoothed
+at 85ms. After 650ms face loss the view eases home; 1.5s loss recalibrates on return.
+Prop the phone still, keep the face in frame, look forward, then press Recenter.
+This is approximate webcam tracking, not stereo VR or full-body locomotion.
 
-WindowPose assumes a neutral viewing distance of 0.45m and uses the capture FOV.
-Span ratios estimate distance; this is relative webcam head tracking, not measured
-screen geometry or stereo VR. Physical screen size, eye distance and lens calibration
-would be required for precise metric registration. Eye gaze does not rotate this
-window: moving the eye position produces parallax. Translation is clamped and
-smoothed (85ms), then returns home after face loss. No opponent is added.
+Hands use a proper 180-degree Y rotation to show the person's side, then subtract
+the neutral head origin and add a fixed 0.30m forward comfort offset to accommodate
+independent face/hand depth estimates. They stay world-tracked, not camera-parented.
+The head model is hidden from its own camera; its collapsible preview remains.
 
-Projection tests verify all screen corners stay anchored as the eye translates,
-and points behind the window exhibit differential parallax. Device testing is
-still needed to tune the scale for a particular phone and viewing distance.
+Optional 3D window mode uses translation and an off-axis projection anchored at
+z=-0.35, without camera rotation. Fixed restores the original mirror projection.
 
-## Optional rotation modes
+The face CPU module worker shares the existing video stream, captures at most
+10fps and 480px width, with one frame in flight. Errors disable only face tracking.
+Inference stays in the browser; model/runtime assets load from Google/jsDelivr.
 
-In Turn to look mode, keep your face and hand in the front camera frame,
-look straight ahead on acquisition, then turn gently. Recenter records a fresh
-neutral on the next detected frame. Fixed restores the original mirror projection.
-Head + eyes (beta) adds a small, approximate eye-direction contribution; this is
-not calibrated screen gaze or a precise eye tracker.
-
-`HeadView.js` owns an independent module worker, sharing the existing video stream.
-It caps capture at 10 fps and 480px width; only one face frame may be in flight.
-`worker.mjs` uses MediaPipe FaceLandmarker 1.0.1, one face, CPU in a worker,
-and blendshapes. All inference stays in the browser; models load from Google/CDN.
-Failure or timeout disables only the face worker, leaving the hands running.
-
-`pose.mjs` estimates the face plane from landmarks 234/454 (cheeks) and 10/152
-(forehead/chin). Correct normalized y by image aspect before the cross product.
-Yaw and pitch are relative to the acquired neutral; roll is intentionally ignored.
-The face plane normal points into the head, opposite its viewing direction.
-The mirror camera maps yaw with -0.65 gain and pitch with +0.65 gain, then caps
-them at 0.24 and 0.18 radians and smooths with a 150ms exponential time constant.
-Eye look-in/out and up/down blendshapes add at most a small contribution; blinks
-above 0.45 suppress it. This plane estimate is approximate, especially at extremes.
-
-After 650ms without a face, the view eases home. After 1.5s, reacquisition resets
-neutral to prevent a jump. No hand joints or rig transforms are modified: the
-camera Euler rotation is applied after `applyView` and before rendering. When
-camera movement is enabled the model intentionally no longer projects onto the
-same video pixels. Use Fixed when debugging hand-to-landmark alignment.
-
-Run `node mirror/head/pose.test.mjs` for synthetic direction, aspect, limits,
-recenter, dropout and eye/blink tests. `verify.html` also runs a real face-model
-worker against the included two-hands photo, without requesting webcam access.
-Live webcam direction and eye sensitivity still need a device check.
+Run node mirror/head/pose.test.mjs for orientation, amplified look direction,
+rear-view limits, physical avatar angles, dead zone, no gaze input, recenter,
+loss handling, translation and off-axis screen anchoring checks. verify.html
+exercises the actual face model on the included photo. Phone feel still needs
+device testing; use Head turn sensitivity to adjust the gain.

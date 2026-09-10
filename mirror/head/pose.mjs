@@ -2,25 +2,19 @@ const clamp = (v, max) => Math.max(-max, Math.min(max, v));
 
 // Face mesh coordinates: x right, y down (height units), z away (width units).
 // A cheek/forehead/chin plane estimates orientation without depending on mouth shape.
-export function facePose(points, categories = [], aspect = 1) {
+export function facePose(points, aspect = 1) {
   if (!points || points.length < 455) return null;
   const sub = (a, b) => [a.x-b.x, (a.y-b.y)/aspect, a.z-b.z];
   const x = sub(points[454], points[234]), y = sub(points[152], points[10]);
   const n = [x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]];
   if (n[2] < 0) n.forEach((_, i) => n[i] *= -1);
   if (Math.hypot(...n) < 1e-7) return null;
-  const scores = Object.fromEntries(categories.map(c => [c.categoryName, c.score]));
-  const s = name => scores[name] || 0;
-  const blink = Math.max(s('eyeBlinkLeft'), s('eyeBlinkRight')) > .45;
   const pose = {
     centerX: (points[33].x + points[263].x) / 2,
     centerY: (points[33].y + points[263].y) / 2,
     span: Math.hypot(...sub(points[263], points[33])),
     yaw: Math.atan2(n[0], n[2]),
-    pitch: Math.atan2(n[1], Math.hypot(n[0], n[2])),
-    eyeX: (s('eyeLookInLeft') + s('eyeLookOutRight') - s('eyeLookOutLeft') - s('eyeLookInRight')) / 2,
-    eyeY: (s('eyeLookUpLeft') + s('eyeLookUpRight') - s('eyeLookDownLeft') - s('eyeLookDownRight')) / 2,
-    blink
+    pitch: Math.atan2(n[1], Math.hypot(n[0], n[2]))
   };
   return Object.values(pose).every(v => typeof v === 'boolean' || Number.isFinite(v)) ? pose : null;
 }
@@ -68,7 +62,7 @@ export function firstPersonOrigin(neutral, aspect, hfov) {
 }
 
 export class ViewPose {
-  constructor() { this.mode = 'head'; this.neutral = null; this.latest = null; this.seen = -Infinity; this.yaw = 0; this.pitch = 0; }
+  constructor() { this.mode = 'head'; this.sensitivity=5; this.physicalYaw=0; this.physicalPitch=0; this.neutral = null; this.latest = null; this.seen = -Infinity; this.yaw = 0; this.pitch = 0; }
   recenter() { this.neutral = null; this.latest = null; }
   receive(pose, now) {
     if (!pose) return;
@@ -78,21 +72,21 @@ export class ViewPose {
     this.neutral ??= { ...pose };
   }
   update(now, dt) {
-    let yaw = 0, pitch = 0;
+    let yaw = 0, pitch = 0, physicalYaw=0, physicalPitch=0;
     if (this.mode !== 'off' && this.latest && this.neutral && now - this.seen < 650) {
       // n points INTO the head (+z), opposite the viewing direction. With the
       // image mirrored, a positive plane yaw looks screen-right (negative camera yaw).
-      const gain=this.mode==='first'?1.4:.65;
-      yaw = -(this.latest.yaw - this.neutral.yaw) * gain;
-      pitch = (this.latest.pitch - this.neutral.pitch) * gain;
-      if (this.mode === 'eyes' && !this.latest.blink) {
-        yaw -= (this.latest.eyeX - this.neutral.eyeX) * .12;
-        pitch += (this.latest.eyeY - this.neutral.eyeY) * .12;
-      }
+      physicalYaw=-(this.latest.yaw-this.neutral.yaw);
+      physicalPitch=this.latest.pitch-this.neutral.pitch;
+      const deadzone=v=>Math.sign(v)*Math.max(0,Math.abs(v)-.025);
+      yaw=this.mode==='first'?deadzone(physicalYaw)*this.sensitivity:physicalYaw*.65;
+      pitch=this.mode==='first'?deadzone(physicalPitch)*this.sensitivity*.6:physicalPitch*.65;
     }
     const a = 1 - Math.exp(-Math.min(dt, .1) / .15);
-    this.yaw += (clamp(yaw, this.mode==='first'?.8:.24) - this.yaw) * a;
-    this.pitch += (clamp(pitch, this.mode==='first'?.55:.18) - this.pitch) * a;
+    this.physicalYaw+=(physicalYaw-this.physicalYaw)*a;
+    this.physicalPitch+=(physicalPitch-this.physicalPitch)*a;
+    this.yaw += (clamp(yaw, this.mode==='first'?Math.PI:.24) - this.yaw) * a;
+    this.pitch += (clamp(pitch, this.mode==='first'?1.3:.18) - this.pitch) * a;
     if (this.mode === 'off') this.yaw = this.pitch = 0;
     return { yaw: this.yaw, pitch: this.pitch };
   }
