@@ -7,7 +7,7 @@ Rock-paper-scissors with real hand tracking: the camera tracks every finger join
 | Version | Who | Live link | What it is |
 |---|---|---|---|
 | **Hand** (build 40) | Claude | https://d14life.github.io/rps-hand/ | The tracked 3D hand (owner's rigged arms model), first person + mirror view, solid-hand solver, and a pistol on a table you can pick up and shoot. Source: `docs/index.html`, `docs/gun.mjs`, `docs/arm_*.glb`. History: `HANDOFF.md`. |
-| **Movement** (v63) | Codex + Claude | https://d14life.github.io/rps-hand/movement/?v=63 | Walking and turning in Dust II with a camera thumb joystick and head look (Codex), plus the shooter: a table with the pistol, cans and ring targets at the spawn, a mirror, the tracked right hand picks the gun up and fires (Claude, `docs/movement/shooter.mjs` + `docs/gun.mjs`). Source: `docs/movement/`. History: `MOVEMENT_HANDOFF.md`, review notes in `CODEX_HAND_REVIEW.md`. |
+| **Movement** (v64) | Codex + Claude | https://d14life.github.io/rps-hand/movement/?v=64 | Walking and turning in Dust II with a camera thumb joystick and head look (Codex), plus the shooter: a table with the pistol, cans and ring targets at the spawn, a mirror, the tracked right hand picks the gun up and fires (Claude, `docs/movement/shooter.mjs` + `docs/gun.mjs`). Source: `docs/movement/`. History: `MOVEMENT_HANDOFF.md`, review notes in `CODEX_HAND_REVIEW.md`. |
 
 Both pages need a phone camera. The two are developed in the same repo but independently: Claude publishes hand builds
 on top of the latest `docs/movement`, Codex publishes movement versions without touching the hand files.
