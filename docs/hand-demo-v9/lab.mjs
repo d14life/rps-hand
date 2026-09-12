@@ -1,11 +1,10 @@
-import {palmSize,sizeDistance} from './palm-distance.mjs?v=alien13';
 import {createRoom} from './room.mjs?v=demo9';
 import {supportedContact} from './surface-contact.mjs?v=demo9';
 import {fitHeadGrip} from './head-grip.mjs?v=demo9';
 import {LandmarkJitter} from './landmark-jitter.mjs';
 import {startTracking,defaults as trackingDefaults} from './tracking-session.mjs?v=demo9';
-import {installCombinedUI} from './combined-ui.mjs?v=alien14';
-import {CombinedHead} from './head-model.mjs?v=alien14';
+import {installCombinedUI} from './combined-ui.mjs?v=demo9';
+import {CombinedHead} from './head-model.mjs?v=demo9';
 import {directDriver} from './direct.mjs?v=demo9';
 import {reduceFalseDepthBends} from './depth-lines.mjs?v=14';
 import {cameraFrame,cameraUV,cameraPosition,fitPalmDepth,liftCameraLandmarks} from './projection.mjs?v=8-final';
@@ -16,7 +15,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/controls/OrbitControls.js';
 import {DollRig} from '../doll/DollRig.js?v=hand-lab-1';
 import {FINGERS,JOINTS,blankAngles,emptyProfile,features,matchPose,clampAngles,validateProfile,lockedAxis,constrainJoint,constrainAngles,directionAngles} from './profile.mjs?v=8-final';
-const $=id=>document.getElementById(id),clone=x=>JSON.parse(JSON.stringify(x)),RAD=Math.PI/180,KEY='hand-lines-experimental-v1';
+const $=id=>document.getElementById(id),clone=x=>JSON.parse(JSON.stringify(x)),RAD=Math.PI/180,KEY='hand-lines-v9-archive';
 let profile=emptyProfile();try{const saved=localStorage.getItem(KEY);if(saved)profile=validateProfile(JSON.parse(saved));}catch{$('notice').textContent='Saved profile could not be read. Import your JSON backup to recover it.';}
 let lastStatsTime=0,lastPreviewTime=-Infinity,combined=null,liveSession=null,getCombinedOptions=()=>trackingDefaults,trackingStats=null;
 let captureAspect=4/3;let allHands=[];const recentHands=new Map(),depthStates={},distanceGains={};let closePhone=null,tips=null,straight={},pinching=false,pinchFinger=null,contactHold=null,contactAngles=null;const tipDots={};let thumbGap=null;
@@ -30,7 +29,7 @@ const palmQ=new THREE.Quaternion(),frozenPalm=new THREE.Quaternion(),basisCache=
 const notice=t=>$('notice').textContent=t;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#182331');
 const perspectiveCamera=new THREE.PerspectiveCamera(60,1,.01,20),orthographicCamera=new THREE.OrthographicCamera(-.5,.5,.5,-.5,.01,20);let camera=perspectiveCamera;
-const room=new THREE.Group();scene.add(room);
+const room=createRoom(scene);
 
 const renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=.12;controls.maxDistance=1.4;
@@ -53,13 +52,13 @@ function jointBasis(n){const key=side+n;if(basisCache[key])return basisCache[key
  const x=r[side+'Index1'].world.clone().sub(r[side+'Pinky1'].world);x.addScaledVector(z,-x.dot(z)).normalize();const y=new THREE.Vector3().crossVectors(z,x).normalize();
  return basisCache[key]=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
 }
-const cheekOffsets={},renderedHands={},sizeReferences={};
+const cheekOffsets={},renderedHands={};
 const landmarkFilters={},filteredFrames={};
 function cameraPoints(world,lm){
  const strength=getCombinedOptions().demoJitter??2,now=performance.now();let cached=filteredFrames[side];
  if(!cached||cached.input!==lm||cached.strength!==strength){if(!cached||now-cached.time>300)landmarkFilters[side]=new LandmarkJitter();const filtered=(landmarkFilters[side]??=new LandmarkJitter()).update(lm,world,strength,captureAspect);cached=filteredFrames[side]={input:lm,strength,time:now,...filtered};}
  const points=rawCameraPoints(cached.world,cached.lm);
- if(!$('sizeDepth')?.checked&&demoNearFace(lm)){const target=new THREE.Vector3().fromArray(cameraPosition(cameraUV(cached.lm[0],captureAspect,camera.aspect),combined.depth,camera.aspect)),delta=target.sub(points[0]);for(const p of points)p.add(delta);}
+ if(demoNearFace(lm)){const target=new THREE.Vector3().fromArray(cameraPosition(cameraUV(cached.lm[0],captureAspect,camera.aspect),combined.depth,camera.aspect)),delta=target.sub(points[0]);for(const p of points)p.add(delta);}
  return points;
 }
 
@@ -74,21 +73,11 @@ function rawCameraPoints(world,lm){
  const modelLength=rig.rest[side+'Middle1'].world.distanceTo(rig.rest[side+'Hand'].world),humanLength=Math.hypot(world[9].x-world[0].x,world[9].y-world[0].y,world[9].z-world[0].z),scale=modelLength/Math.max(.01,humanLength);
  let depth=(depthEstimate(lm,world,captureAspect)||.5)*scale/cameraFrame(captureAspect,camera.aspect).height,pts;
  for(let pass=0;pass<2;pass++){pts=liftCameraLandmarks(lm,world,captureAspect,camera.aspect,depth,scale).map(p=>new THREE.Vector3().fromArray(p));const q=new THREE.Quaternion().setFromRotationMatrix(frameBasis(pts[0],pts[5],pts[9],pts[17]).multiply(restBasis(side).invert()));const samples=[['Index1',5],['Middle1',9],['Ring1',13],['Pinky1',17]].map(([n,i])=>({uv:cameraUV(lm[i],captureAspect,camera.aspect),offset:rig.rest[side+n].world.clone().sub(rig.rest[side+'Hand'].world).applyQuaternion(q).toArray()}));depth=fitPalmDepth(cameraUV(lm[0],captureAspect,camera.aspect),samples,camera.aspect,depth);}
- if($('sizeDepth')?.checked){
-  const size=palmSize(lm,world,captureAspect);
-  if(size&&!sizeReferences[side])sizeReferences[side]={size,depth};
-  depth=sizeDistance(size,sizeReferences[side],depth,+$('nearDistance').value/100);
-  $('sizeStatus').textContent=side+' hand: '+Math.round(depth*100)+' cm from camera (estimate).';
- }
- if(combined?.group.visible&&combined.depth){
-  const protrusion=Math.max(0,...world.map(p=>(p.z-world[0].z)*scale));
-  depth=Math.min(depth,Math.max(.08,combined.depth-protrusion));
- }
  const now=performance.now(),state=depthStates[side];
  if(!state)depthStates[side]={depth,scale,time:now};
  else {const dt=Math.min(.05,(now-state.time)/1000);const desired=Math.max(state.depth*.85,Math.min(state.depth*1.15,depth));const ms=getCombinedOptions().depthSmooth||0;state.depth=ms?state.depth+(desired-state.depth)*(1-Math.exp(-dt/(ms/1000))):depth;state.time=now;}
- const stable=depthStates[side],gain=$('sizeDepth')?.checked?1:(distanceGains[side]||1);
- return liftCameraLandmarks(lm,world,captureAspect,camera.aspect,Math.max(.05,+$('phoneDistance').value/100+(stable.depth*gain-+$('phoneDistance').value/100)*($('sizeDepth')?.checked?1:+$('depthGain').value)),stable.scale*gain).map(p=>new THREE.Vector3().fromArray(p));
+ const stable=depthStates[side],gain=distanceGains[side]||1;
+ return liftCameraLandmarks(lm,world,captureAspect,camera.aspect,Math.max(.05,+$('phoneDistance').value/100+(stable.depth*gain-+$('phoneDistance').value/100)*+$('depthGain').value),stable.scale*gain).map(p=>new THREE.Vector3().fromArray(p));
 }
 function solveRaw(world,lm){const pts=cameraPoints(world,lm);
  palmQ.setFromRotationMatrix(frameBasis(pts[0],pts[5],pts[9],pts[17]).multiply(restBasis(side).invert()));
@@ -419,12 +408,3 @@ function fitDemoMeshContact(points,handSide,lm){
 }
 
 window.addEventListener('pagehide',()=>{liveSession?.();closePhone?.();stream?.getTracks().forEach(track=>track.stop());});
-
-$('captureRestSize').onclick=()=>{
- if(!allHands.length||!combined?.depth)return notice('Show your face and hand first.');
- for(const hand of allHands){const size=palmSize(hand.landmarks,hand.world,captureAspect);if(!size)continue;
-  const S=hand.landmarks===latest?.landmarks?side:(side==='R'?'L':'R');
-  sizeReferences[S]={size,depth:Math.max(.08,combined.depth-+$('restGap').value/100)};
- }
- notice('Resting hand size captured. Move toward the camera to reduce distance; physical model size stays fixed.');
-};
