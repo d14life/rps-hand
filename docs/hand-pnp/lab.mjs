@@ -1,6 +1,6 @@
-import {OuterCollision} from './outer-collision.mjs?v=pnp1';
-import {HandContactAssist} from './hand-contact-assist.mjs?v=pnp1';
-import {installExperiment} from './experiment.mjs?v=pnp1';
+import {OuterCollision} from './outer-collision.mjs?v=pnp2';
+import {HandContactAssist} from './hand-contact-assist.mjs?v=pnp2';
+import {installExperiment} from './experiment.mjs?v=pnp2';
 let depthExperiment=null;
 import {imagePalmSize,sizeDepth,wallShift} from './size-wall-depth.mjs?v=alien18.4';
 import {palmSize} from './palm-distance.mjs?v=alien13';
@@ -8,10 +8,10 @@ import {createRoom} from './room.mjs?v=demo9';
 import {supportedContact} from './surface-contact.mjs?v=demo9';
 import {fitHeadGrip} from './head-grip.mjs?v=demo9';
 import {startTracking,defaults as trackingDefaults} from './tracking-session.mjs?v=alien18.4';
-import {installCombinedUI} from './combined-ui.mjs?v=pnp1';
-import {CombinedHead} from './head-model.mjs?v=pnp1';
-import {directDriver} from './direct.mjs?v=pnp1';
-import {reduceFalseDepthBends} from './depth-lines.mjs?v=pnp1';
+import {installCombinedUI} from './combined-ui.mjs?v=pnp2';
+import {CombinedHead} from './head-model.mjs?v=pnp2';
+import {directDriver} from './direct.mjs?v=pnp2';
+import {reduceFalseDepthBends} from './depth-lines.mjs?v=pnp2';
 import {cameraFrame,cameraUV,cameraPosition,fitPalmDepth,liftCameraLandmarks} from './projection.mjs?v=8-final';
 import {buildTips,tipWorld,fitPinch,fitThumb} from './contact.mjs?v=8-final';
 import {FIST,AngleLimiter,alignment,poseAlignment,ClosureTracker,thumbFistWeight,thumbContact,closure,referencePose,Settler,depthEstimate,positionAt,straightJoints,pinchDistance} from './motion.mjs?v=8-final';
@@ -492,7 +492,7 @@ if($('captureRestSize'))$('captureRestSize').onclick=()=>{
 // The requested direct mode has no custom temporal jiggle filter or scan.
 for(const id of ['fingerNoise','directionSmoothing','confirmJump','movementThreshold','depthSmooth','headSmooth']){const input=$(id);if(input){input.value=0;input.closest('label').style.display='none';}}
 for(const d of $('directSettings').querySelectorAll('details'))if(d.querySelector('summary')?.textContent==='Jiggle')d.style.setProperty('display','none','important');
-const pipelineInfo=document.createElement('p');pipelineInfo.textContent='Fixed palm PnP estimates rotation and distance. Select the size baseline to compare without PnP.';$('directSettings').prepend(pipelineInfo);
+const pipelineInfo=document.createElement('p');pipelineInfo.textContent='MediaPipe PnP estimates rotation and distance. Select the size baseline to compare without PnP.';$('directSettings').prepend(pipelineInfo);
 
 depthExperiment=installExperiment({container:$('directSettings'),video:$('video'),getHead:()=>combined,getPalmModel:S=>['Hand','Index1','Middle1','Ring1','Pinky1'].map(n=>rig.rest[S+n].world.toArray())});
 
