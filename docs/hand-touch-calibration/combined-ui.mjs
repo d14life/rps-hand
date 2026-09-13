@@ -55,8 +55,8 @@ export function installCombinedUI(){
  sizePanel.style.setProperty('display','none','important');
  const timing=document.createElement('p');timing.id='calculationTiming';container.prepend(timing);
  const extraIds=['relaxedPalm','handDistance','handHeight','headSide','contactThreshold','headHeight','handSize','headBack','faceGrace','mappedFaceDots','demoGrip','demoJitter','demoMatch','demoHeadMatch','demoContact','demoReach','demoSide','demoPadding','demoThumbDepth','demoThumbTwist','uncappedTracking','handPriority','trackerDelegate','cameraFps','handRate','faceRate','shoulderRate','trackingWidth','sceneRate','renderScale','overlayRate','showHead','lockBody','turnGain','moveGain','neckShare','headSmooth','headSize','faceOffset','depthSmooth'];
- try{const values=JSON.parse(localStorage.getItem('brother-demo-options')||'{}');if(values.uncappedTracking===undefined){values.uncappedTracking=true;values.sceneRate=60;}for(const id of extraIds){const e=$(id),v=values[id];if(e.type==='checkbox'&&typeof v==='boolean')e.checked=v;else if(e.tagName==='SELECT'&&['GPU','CPU'].includes(v))e.value=v;else if(Number.isFinite(v)&&v>=+e.min&&v<=+e.max)e.value=v;}}catch{}
- for(const id of extraIds){const e=$(id);if(e.type==='range')e.nextElementSibling.value=e.value;e.addEventListener('input',()=>{if(e.type==='range')e.nextElementSibling.value=e.value;const state={};for(const key of extraIds){const c=$(key);state[key]=c.type==='checkbox'?c.checked:c.tagName==='SELECT'?c.value:+c.value;}try{localStorage.setItem('brother-demo-options',JSON.stringify(state));}catch{}});}
+ try{const values=JSON.parse(localStorage.getItem('hand-touch-calibration-options')||'{}');if(values.uncappedTracking===undefined){values.uncappedTracking=true;values.sceneRate=60;}for(const id of extraIds){const e=$(id),v=values[id];if(e.type==='checkbox'&&typeof v==='boolean')e.checked=v;else if(e.tagName==='SELECT'&&['GPU','CPU'].includes(v))e.value=v;else if(Number.isFinite(v)&&v>=+e.min&&v<=+e.max)e.value=v;}}catch{}
+ for(const id of extraIds){const e=$(id);if(e.type==='range')e.nextElementSibling.value=e.value;e.addEventListener('input',()=>{if(e.type==='range')e.nextElementSibling.value=e.value;const state={};for(const key of extraIds){const c=$(key);state[key]=c.type==='checkbox'?c.checked:c.tagName==='SELECT'?c.value:+c.value;}try{localStorage.setItem('hand-touch-calibration-options',JSON.stringify(state));}catch{}});}
  for(const id of ['tipContact','falseDepth']){const note=document.createElement('small');note.textContent=id==='tipContact'?'Extra calculation: contact fitting can reduce FPS. Uncheck to disable.':'Extra calculation: corrects estimated depth bends; may reduce FPS. Uncheck to disable.';$(id).parentElement.append(note);}
  $('demoGrip').value=0;$('demoGrip').nextElementSibling.value=0;
  const jitter=document.createElement('p');jitter.textContent='Smoothing and jump confirmation can add visible delay even at high FPS. They are different from slow inference. Zero disables the numeric filter.';$('directionSmoothing').parentElement.after(jitter);
@@ -71,9 +71,10 @@ export function installCombinedUI(){
  $('shoulderRate').value=20;$('shoulderRate').nextElementSibling.value=20;$('faceRate').value=20;$('faceRate').nextElementSibling.value=20;$('lockBody').checked=false;$('neckShare').value=.45;$('neckShare').nextElementSibling.value=.45;
  $('headSize').value=1.2;$('headSize').nextElementSibling.value=1.2;
  for(const [id,value] of Object.entries({demoJitter:0,depthSmooth:0,headSmooth:0,turnGain:1,moveGain:1,neckShare:.45,headSize:1.2,faceOffset:0})){$(id).value=value;$(id).nextElementSibling.value=value;}
- document.querySelector('header b').textContent='HANDS + ALIEN HEAD · 18.4 · MANUAL FIT + CONTACT';
+ document.querySelector('header b').textContent='HANDS + ALIEN HEAD · TOUCH CALIBRATION';
  document.querySelector('header span').textContent='Fixed-size hands · alien head, neck and shoulders';
  for(const id of ['demoGrip','demoContact','demoReach','demoSide','demoPadding']){$(id).value=0;$(id).nextElementSibling.value=0;$(id).closest('label').style.display='none';}
  for(const id of ['demoMatch','demoHeadMatch'])$(id).closest('label').style.display='none';
  return ()=>({...Object.fromEntries(extraIds.map(id=>{const e=$(id);return [id,e.type==='checkbox'?e.checked:e.tagName==='SELECT'?e.value:+e.value];})),demoMatch:0,demoGrip:0,demoContact:0,demoJitter:experiment().jitterCalc?+$('demoJitter').value:0,depthSmooth:+$('depthSmooth').value,...experiment()});
 }
+
