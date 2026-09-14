@@ -1,3 +1,11 @@
+## Latest correction: preserve the original PnP method (palm4)
+
+User explicitly requires the existing research-based PnP code unchanged. palm-pnp.mjs is restored byte-for-byte to 9d9addf (blob 186a377f0fb348836b65176dcee72546c9830ed1). Removed IPPE and the 043e668 world-orientation/translation fallback; palm-orientation.mjs deleted. Do not reintroduce alternative pose estimators or MediaPipe orientation overrides.
+
+The actual palm fix restores the original model depth relief instead of flattening wrist/MCP references. PnP calls fitPhotoHand with preservePalmRelief:true; palm-relief.mjs restores mesh depths and locates exact paired-surface joint centres. XY remains from the reference images. Sweep's default fit stays unchanged. Gun shares PnP's corrected model and original solver.
+
+Verified original blob identity, 876 full-turn synthetic frames without failures, all 42 paired joint centres (<0.000001 model mm residual), 60 gun configurations and existing calibration/trigger tests. Image 1: 0.040 px RMS / 0.117 px max. No live camera verification with the user's hand. Previous entries below describe superseded changes.
+
 ## Latest: PnP rotation + aligned gun lab (2026-09-14)
 
 PnP now consumes raw world landmarks to choose palm orientation and avoid holding a front-facing planar solution during twists. New palm-orientation.mjs contains the 3D frame and translation fit; rotation-check.mjs checks 876 synthetic frames. Existing reference overlay remains available.
