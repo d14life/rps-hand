@@ -1,3 +1,11 @@
+## Latest: PnP rotation + aligned gun lab (2026-09-14)
+
+PnP now consumes raw world landmarks to choose palm orientation and avoid holding a front-facing planar solution during twists. New palm-orientation.mjs contains the 3D frame and translation fit; rotation-check.mjs checks 876 synthetic frames. Existing reference overlay remains available.
+
+New docs/hand-pnp-gun/index.html loads the existing PnP lab through a base URL and activates gun.mjs. It reuses gun-lab/GripRig, held-pose controller, saved JSON poses and gun.glb, then transfers the held directions to the aligned fixed-length rig. Gun placement is anchored to the middle knuckle to account for the moved wrist pivot. Gun scale follows calibration. Joint lines stay on; preview buttons expose the saved stops. gun-check.mjs checks both sides, 60 poses, scaling, pickup/release/loss. The authored stops are not a general collision simulation. Original gun-lab pages are unchanged.
+
+Validation: 23 Node checks, browser rotation and gun integration checks, and the actual PnP sample (0.2 px RMS / 0.5 px max). Physical live-camera twisting and grip accuracy remain for the user to evaluate; do not imply camera testing was done with their hand.
+
 # Alignment update — 2026-09-14
 
 The old unfinished midpoint description below is historical. The existing PnP page and both Sweep pages now share corrected reference geometry and an image-ray finger driver. See `docs/hand-pnp-photo/README.md` for current implementation and verification.
