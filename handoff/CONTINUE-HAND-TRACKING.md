@@ -1,3 +1,11 @@
+# Alignment update — 2026-09-14
+
+The old unfinished midpoint description below is historical. The existing PnP page and both Sweep pages now share corrected reference geometry and an image-ray finger driver. See `docs/hand-pnp-photo/README.md` for current implementation and verification.
+
+Done: paired/symmetric thickness centres, palm-base pivot, visible actual model lines on both hands, same source-derived proportions in PnP and Sweep, real screenshot overlay comparison, and PnP/Sweep links on the front page. Image 1 matches the traced reference to <0.001 px; image 2 is approximately 0.408 px RMS / 1.194 px max. Live physical metric accuracy remains unverified; do not describe it as exact.
+
+---
+
 # Cross-PC hand tracking handoff — 2026-09-14
 
 Repository: https://github.com/d14life/rps-hand.git — branch main. GitHub Pages publishes docs/. Last implementation commit: 9d9addf. This handoff is context; do not change every historical version.
