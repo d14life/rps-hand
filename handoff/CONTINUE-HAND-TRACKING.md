@@ -1,3 +1,9 @@
+## Latest: one-time reference fit, original constrained motion and collision controls
+
+User wants the present model geometry kept, reference alignment performed only at setup, and previous movement constraints/collision settings restored. Live directOptions now explicitly disables fitImage in PnP and both Sweep pages; the shared driver defaults false. PIP/DIP hinge planes, base limits and previous direction tracking execute again. Static reference comparison explicitly retains its image-fit option. No geometry or PnP solver change in this restoration.
+
+Restored existing contactPanel visibility and removed PnP's unconditional applyHandInteractions return. Hand/hand and hand/head collisions and contact controls are available, default off. User deferred gun-specific work; existing gun code remains unchanged. Secondary joint lines refresh after correction. Tests: exact comparison to 9d9addf original driver across 72 poses (zero difference), no live image-ray influence or vertex changes; collision/contact checks pass. Do not claim live camera jitter is eliminated.
+
 ## Latest correction: preserve the original PnP method (palm4)
 
 User explicitly requires the existing research-based PnP code unchanged. palm-pnp.mjs is restored byte-for-byte to 9d9addf (blob 186a377f0fb348836b65176dcee72546c9830ed1). Removed IPPE and the 043e668 world-orientation/translation fallback; palm-orientation.mjs deleted. Do not reintroduce alternative pose estimators or MediaPipe orientation overrides.
