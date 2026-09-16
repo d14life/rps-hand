@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>PnP numerical checks</title>
+<pre id="results">Loading OpenCV…</pre>
+<script type="module">
+import {loadCV,calibrate} from './opencv-core.mjs?v=pnp1';
+import {pnpSelfTest,fixedPalm,solvePalmPnP,PALM_IDS} from './pnp.mjs?v=pnp1';
+const output=document.querySelector('#results');
+try {
+ const cv=await loadCV(),pose=pnpSelfTest(cv),w=640,h=480;
+ const trueK=cv.matFromArray(3,3,cv.CV_64F,[610,0,318,0,605,242,0,0,1]);
+ const distortion=cv.matFromArray(5,1,cv.CV_64F,[-.12,.03,0,0,0]);
+ const grid=[];for(let y=0;y<3;y++)for(let x=0;x<3;x++)grid.push(x*.035,y*.035,0);
+ const object=cv.matFromArray(9,1,cv.CV_64FC3,grid),views=[];
+ for(let i=0;i<12;i++){
+  const r=cv.matFromArray(3,1,cv.CV_64F,[(i%3-1)*.4,(Math.floor(i/3)%3-1)*.35,(i%2-.5)*.3]);
+  const t=cv.matFromArray(3,1,cv.CV_64F,[-.07+(i%4)*.025,-.06+(i%3)*.035,.25+(i%4)*.04]),image=new cv.Mat();
+  try{cv.projectPoints(object,r,t,trueK,distortion,image);views.push(Array.from({length:9},(_,j)=>Array.from(image.data64F.slice(j*2,j*2+2))));}finally{r.delete();t.delete();image.delete();}
+ }
+ const camera=calibrate(cv,views,w,h,1),focalError=Math.max(Math.abs(camera.fx*w-610),Math.abs(camera.fy*h-605));
+ if(focalError>.1||camera.rms>.001)throw Error('Camera calibration recovery failed: '+JSON.stringify(camera));
+ const template=[[0,0,0],[.028,.066,0],[0,.075,0],[-.021,.07,0],[-.04,.057,0]];
+ const model=fixedPalm(template,.075),large=fixedPalm(template,.09),lm=Array.from({length:21},()=>({x:.5,y:.5}));
+ model.forEach(([x,y],j)=>lm[PALM_IDS[j]]={x:camera.fx*x/.5+camera.cx,y:camera.fy*y/.5+camera.cy});
+ const k={...camera,distortion:[0,0,0,0,0]},a=solvePalmPnP(cv,lm,model,k,4/3),b=solvePalmPnP(cv,lm,large,k,4/3);
+ if(!a||!b||Math.abs(b.depth/a.depth-1.2)>1e-6)throw Error('Physical palm size did not scale depth proportionally');
+ if(solvePalmPnP(cv,[],model,k,4/3)!==null||solvePalmPnP(cv,lm,model,k,1)!==null)throw Error('Invalid observation accepted');
+ trueK.delete();distortion.delete();object.delete();
+ output.textContent=JSON.stringify({pass:true,knownPoses:pose,cameraCalibration:{rms:camera.rms,focalErrorPixels:focalError,radialDistortion:camera.distortion},palmSizeDepthRatio:b.depth/a.depth,invalidInputsRejected:true},null,2);
+}catch(e){output.textContent='FAIL: '+(e.stack||e);}
+</script>
