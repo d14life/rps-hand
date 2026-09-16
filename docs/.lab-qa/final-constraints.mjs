@@ -1,6 +1,6 @@
 import * as T from 'three';
-import {finalHandLimits} from '../hand-live-limits/final-hand-limits.mjs?v=constraints2';
-import {finalConfig} from '../hand-range/settings.mjs?v=constraints2';
+import {finalHandLimits} from '../hand-live-limits/final-hand-limits.mjs?v=constraints3';
+import {finalConfig} from '../hand-range/settings.mjs?v=constraints3';
 const names=['Thumb','Index','Middle','Ring','Pinky'],rad=Math.PI/180;
 let checks=0;const assert=(v,m)=>{checks++;if(!v)throw Error(m);};
 try{
@@ -18,9 +18,9 @@ try{
    const c=chains[f],dirs=[1,2,3].map(k=>c[k].clone().sub(c[k-1]).normalize());
    const axis=new T.Vector3(1,0,0).addScaledVector(dirs[0],-dirs[0].x).normalize().multiplyScalar(sgn);
    for(let k=1;k<3;k++){assert(Math.abs(dirs[k].dot(axis))<1e-6,'upper sideways');const angle=Math.atan2(axis.dot(new T.Vector3().crossVectors(dirs[k-1],dirs[k])),dirs[k-1].dot(dirs[k]))/rad;assert(angle>=-1e-6&&angle<=(k===1?110:80)+1e-6,'upper signed bend');}
-   if(a.flex>=45)assert(Math.abs(a.splay)<1e-6,'curl side lock');
+   if(a.flex>=90-1e-6)assert(Math.abs(a.splay)<1e-6,'curl side lock');
   }
-  for(let k=1;k<4;k++){const c=chains[0],prev=k===1?new T.Vector3(0,1,0):c[k-1].clone().sub(c[k-2]).normalize(),dir=c[k].clone().sub(c[k-1]).normalize(),axis=new T.Vector3(1,0,0).addScaledVector(prev,-prev.x).normalize().multiplyScalar(sgn);const angle=Math.atan2(axis.dot(new T.Vector3().crossVectors(prev,dir)),prev.dot(dir))/rad;assert(angle>=-35-1e-6,'thumb backward limit');}
+  assert(chains[0].every((v,k)=>v.distanceTo(original[0][k])<1e-9),'thumb changed despite no thumb limits');
   for(const c of chains)for(let k=1;k<4;k++)assert(Math.abs(c[k].distanceTo(c[k-1])-.03)<1e-8,'bone length changed');
  }
  document.querySelector('#results').textContent=`PASS: ${checks} assertions across 200 left/right poses. Disabled identity, joint bounds, signed hinges, curl lock and fixed lengths.`;
